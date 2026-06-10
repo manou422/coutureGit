@@ -1,0 +1,4 @@
+node_modules/
+album/node_modules/
+album/dist/
+.env

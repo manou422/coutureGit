@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Tennis Club Paris 13\\\\Desktop\\\\API\\\\public\" -Force)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Stop-Process -Id 26496 -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Name node -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3000 -State Listen\\).OwningProcess -Force; Start-Sleep -Seconds 1; Write-Host \"Port libéré\")",
+      "PowerShell(Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; Write-Host \"OK\")",
+      "PowerShell(code \"c:\\\\Users\\\\Tennis Club Paris 13\\\\Desktop\\\\API\\\\album\")",
+      "PowerShell(Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue; cd \"c:\\\\Users\\\\Tennis Club Paris 13\\\\Desktop\\\\API\\\\album\"; & \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" \".\\\\node_modules\\\\vite\\\\bin\\\\vite.js\")",
+      "PowerShell(Set-Location \"c:\\\\Users\\\\Tennis Club Paris 13\\\\Desktop\\\\API\\\\album\"; Write-Host \\(Get-Location\\))",
+      "PowerShell(Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue\\).OwningProcess -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; cd \"c:\\\\Users\\\\Tennis Club Paris 13\\\\Desktop\\\\API\\\\album\"; & \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" \".\\\\node_modules\\\\vite\\\\bin\\\\vite.js\")",
+      "PowerShell($vite = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue; $node = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue; \"Vite \\(5173\\): $\\(if \\($vite\\) {'actif'} else {'inactif'}\\)\"; \"Node \\(3000\\): $\\(if \\($node\\) {'actif'} else {'inactif'}\\)\")",
+      "PowerShell(Start-Process \"http://localhost:5173\")"
+    ]
+  }
+}
