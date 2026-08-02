@@ -8,12 +8,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-
-const estAdmin = computed(() => {
-    const u = JSON.parse(localStorage.getItem('utilisateur') || '{}')
-    return u.type === 'admin'
-})
+import { estAdmin } from '../stores/auth.js'
 </script>
 
 <style scoped>

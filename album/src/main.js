@@ -6,6 +6,7 @@ import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 import App from './App.vue'
+import { assurerSynchro } from './stores/auth.js'
 import HomeView from './views/HomeView.vue'
 import GalerieView from './views/GalerieView.vue'
 import DescriptionView from './views/DescriptionView.vue'
@@ -29,14 +30,15 @@ const router = createRouter({
     ]
 })
 
-router.beforeEach((to) => {
-    if (to.meta.requiresAuth && !localStorage.getItem('connecte')) {
-        return '/login'
-    }
-    if (to.meta.adminOnly) {
-        const utilisateur = JSON.parse(localStorage.getItem('utilisateur') || '{}')
-        if (utilisateur.type !== 'admin') return '/'
-    }
+router.beforeEach(async (to) => {
+    if (!to.meta.requiresAuth) return
+
+    // Resynchronise le profil (donc le rôle) depuis le serveur au premier
+    // chargement : le localStorage seul peut être périmé.
+    const utilisateur = await assurerSynchro()
+    if (!utilisateur) return '/login'
+
+    if (to.meta.adminOnly && utilisateur.type !== 'admin') return '/'
 })
 
 const vuetify = createVuetify({ components, directives })

@@ -149,7 +149,7 @@ app.delete('/api/photos/:id', async (req, res) => {
 
 // Servir le build Vue en production
 app.use(express.static(path.join(__dirname, 'album', 'dist')))
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
     res.sendFile(path.join(__dirname, 'album', 'dist', 'index.html'))
 })
 

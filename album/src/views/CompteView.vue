@@ -75,6 +75,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { connecter, deconnecter, rafraichir, utilisateur as utilisateurConnecte } from '../stores/auth.js'
 
 const router     = useRouter()
 const utilisateur = ref({})
@@ -86,10 +87,8 @@ const form        = ref({ nom: '', prenom: '', mail: '', motDePasse: '' })
 const voirMdp     = ref(false)
 
 onMounted(async () => {
-    const local = JSON.parse(localStorage.getItem('utilisateur') || '{}')
-    if (!local.id) return router.push('/login')
-    const res  = await fetch(`/api/utilisateurs/${local.id}`)
-    const data = await res.json()
+    const data = await rafraichir()
+    if (!data) return router.push('/login')
     utilisateur.value = data
 })
 
@@ -120,7 +119,7 @@ async function sauvegarder() {
             erreur.value = data.erreur || 'Erreur lors de la modification'
         } else {
             utilisateur.value = { ...utilisateur.value, nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail }
-            localStorage.setItem('utilisateur', JSON.stringify({ ...JSON.parse(localStorage.getItem('utilisateur')), nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail }))
+            connecter({ ...utilisateurConnecte.value, nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail })
             succes.value = 'Modifications enregistrées'
             setTimeout(() => { modeEdition.value = false; succes.value = '' }, 1200)
         }
@@ -132,17 +131,14 @@ async function sauvegarder() {
 }
 
 function seDeconnecter() {
-    localStorage.removeItem('connecte')
-    localStorage.removeItem('utilisateur')
+    deconnecter()
     router.push('/login')
 }
 
 async function supprimerCompte() {
     if (!confirm('Supprimer définitivement votre compte ?')) return
-    const local = JSON.parse(localStorage.getItem('utilisateur') || '{}')
-    await fetch(`/api/utilisateurs/${local.id}`, { method: 'DELETE' })
-    localStorage.removeItem('connecte')
-    localStorage.removeItem('utilisateur')
+    await fetch(`/api/utilisateurs/${utilisateur.value.id}`, { method: 'DELETE' })
+    deconnecter()
     router.push('/login')
 }
 </script>

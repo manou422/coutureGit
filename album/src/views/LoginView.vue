@@ -30,6 +30,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { connecter, invaliderSynchro } from '../stores/auth.js'
 
 const router     = useRouter()
 const email      = ref('')
@@ -51,8 +52,8 @@ async function seConnecter() {
         if (!res.ok) {
             erreur.value = data.erreur || 'Identifiants incorrects'
         } else {
-            localStorage.setItem('connecte', 'true')
-            localStorage.setItem('utilisateur', JSON.stringify(data.utilisateur))
+            connecter(data.utilisateur)
+            invaliderSynchro()
             router.push('/')
         }
     } catch {

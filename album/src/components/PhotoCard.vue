@@ -19,15 +19,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { supprimerPhoto } from '../stores/photos.js'
+import { estAdmin } from '../stores/auth.js'
 
 const props = defineProps({ photo: Object })
-
-const estAdmin = computed(() => {
-    const u = JSON.parse(localStorage.getItem('utilisateur') || '{}')
-    return u.type === 'admin'
-})
 
 function supprimer() {
     if (confirm(`Supprimer "${props.photo.titre}" ?`)) {
