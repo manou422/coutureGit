@@ -24,9 +24,12 @@ import { estAdmin } from '../stores/auth.js'
 
 const props = defineProps({ photo: Object })
 
-function supprimer() {
-    if (confirm(`Supprimer "${props.photo.titre}" ?`)) {
-        supprimerPhoto(props.photo.id)
+async function supprimer() {
+    if (!confirm(`Supprimer "${props.photo.titre}" ?`)) return
+    try {
+        await supprimerPhoto(props.photo.id)
+    } catch (e) {
+        alert(e.message)
     }
 }
 </script>

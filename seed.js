@@ -6,16 +6,16 @@ const PHOTOS_DIR = path.join(__dirname, 'album', 'public', 'photos')
 
 const albums = [
     { titre: 'Pochon 1',     description: '', fichier: 'pochon1.JPEG' },
-    { titre: 'Pochette ZIP', description: '', fichier: 'pochetteZIP.JPEG' },
+    { titre: 'Pochette ZIP', description: '', fichier: 'pochetteZip.JPEG' },
     { titre: 'Couture',      description: '', fichier: 'couture.webp' }
 ]
 
 async function seed() {
     const pool = mysql.createPool({
-        host:     'localhost',
-        user:     'root',
-        password: '12Couture422§',
-        port:     3306
+        host:     process.env.DB_HOST     || 'localhost',
+        user:     process.env.DB_USER     || 'root',
+        password: process.env.DB_PASSWORD || '',
+        port:     parseInt(process.env.DB_PORT) || 3306
     })
 
     await pool.query('CREATE DATABASE IF NOT EXISTS album')

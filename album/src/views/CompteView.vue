@@ -75,7 +75,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { connecter, deconnecter, rafraichir, utilisateur as utilisateurConnecte } from '../stores/auth.js'
+import { api, connecter, deconnecter, rafraichir, utilisateur as utilisateurConnecte } from '../stores/auth.js'
 
 const router     = useRouter()
 const utilisateur = ref({})
@@ -109,10 +109,9 @@ async function sauvegarder() {
     succes.value = ''
     chargement.value = true
     try {
-        const res  = await fetch(`/api/utilisateurs/${utilisateur.value.id}`, {
-            method:  'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail, motDePasse: form.value.motDePasse || undefined })
+        const res  = await api(`/api/utilisateurs/${utilisateur.value.id}`, {
+            method: 'PUT',
+            body:   JSON.stringify({ nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail, motDePasse: form.value.motDePasse || undefined })
         })
         const data = await res.json()
         if (!res.ok) {
@@ -137,7 +136,7 @@ function seDeconnecter() {
 
 async function supprimerCompte() {
     if (!confirm('Supprimer définitivement votre compte ?')) return
-    await fetch(`/api/utilisateurs/${utilisateur.value.id}`, { method: 'DELETE' })
+    await api(`/api/utilisateurs/${utilisateur.value.id}`, { method: 'DELETE' })
     deconnecter()
     router.push('/login')
 }

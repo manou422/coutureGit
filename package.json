@@ -2,7 +2,8 @@
   "name": "album-app",
   "version": "1.0.0",
   "scripts": {
-    "start": "node server.js",
+    "start": "node --env-file-if-exists=.env server.js",
+    "seed": "node --env-file-if-exists=.env seed.js",
     "build": "cd album && npm install && npm run build"
   },
   "dependencies": {

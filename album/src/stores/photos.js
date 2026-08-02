@@ -1,24 +1,31 @@
 import { ref } from 'vue'
+import { api } from './auth.js'
 
 export const photos = ref([])
 
 export async function chargerPhotos() {
-    const res  = await fetch('/api/photos')
+    const res = await api('/api/photos')
     photos.value = await res.json()
 }
 
 export async function ajouterPhoto(photo) {
-    const res  = await fetch('/api/photos', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(photo)
+    const res = await api('/api/photos', {
+        method: 'POST',
+        body:   JSON.stringify(photo)
     })
-    const nouvelle = await res.json()
-    photos.value.push(nouvelle)
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.erreur || "Impossible d'ajouter la création")
+    }
+    photos.value.push(await res.json())
 }
 
 export async function supprimerPhoto(id) {
-    await fetch(`/api/photos/${id}`, { method: 'DELETE' })
+    const res = await api(`/api/photos/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.erreur || 'Suppression refusée')
+    }
     const index = photos.value.findIndex(p => p.id === id)
     if (index !== -1) photos.value.splice(index, 1)
 }

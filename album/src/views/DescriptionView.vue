@@ -12,13 +12,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { api } from '../stores/auth.js'
 
 const route = useRoute()
 const photo = ref(null)
 
 onMounted(async () => {
-    const res  = await fetch(`/api/photos/${route.params.id}`)
-    photo.value = await res.json()
+    const res = await api(`/api/photos/${route.params.id}`)
+    if (res.ok) photo.value = await res.json()
 })
 </script>
 

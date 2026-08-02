@@ -24,6 +24,7 @@
             </div>
 
             <button type="submit">Enregistrer</button>
+            <p v-if="erreur" class="erreur">{{ erreur }}</p>
             <p v-if="succes" class="succes">Modifications enregistrées !</p>
         </form>
 
@@ -34,6 +35,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { api } from '../stores/auth.js'
 
 const route  = useRoute()
 const router = useRouter()
@@ -43,10 +45,11 @@ const titre       = ref('')
 const description = ref('')
 const apercu      = ref(null)
 const succes      = ref(false)
+const erreur      = ref('')
 let   nouvellephoto = null
 
 onMounted(async () => {
-    const res  = await fetch(`/api/photos/${route.params.id}`)
+    const res  = await api(`/api/photos/${route.params.id}`)
     photo.value = await res.json()
     titre.value       = photo.value.titre
     description.value = photo.value.description
@@ -65,15 +68,19 @@ function chargerFichier(e) {
 }
 
 async function sauvegarder() {
-    await fetch(`/api/photos/${route.params.id}`, {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
+    const res = await api(`/api/photos/${route.params.id}`, {
+        method: 'PUT',
+        body:   JSON.stringify({
             titre:       titre.value,
             description: description.value,
             photo:       nouvellephoto || photo.value.photo
         })
     })
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        erreur.value = data.erreur || 'Modification refusée'
+        return
+    }
     succes.value = true
     setTimeout(() => router.push('/galerie'), 1200)
 }
@@ -147,6 +154,11 @@ button:hover { background-color: #2244bb; }
 .succes {
     text-align: center;
     color: #38a169;
+    font-weight: 600;
+}
+.erreur {
+    text-align: center;
+    color: #e53e3e;
     font-weight: 600;
 }
 </style>

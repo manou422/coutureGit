@@ -10,44 +10,62 @@ function lireLocal() {
 }
 
 export const utilisateur = ref(lireLocal())
+export const token       = ref(localStorage.getItem('token'))
 export const estAdmin    = computed(() => utilisateur.value?.type === 'admin')
-export const estConnecte = computed(() => !!utilisateur.value)
+export const estConnecte = computed(() => !!utilisateur.value && !!token.value)
 
-export function connecter(donnees) {
+export function connecter(donnees, nouveauToken) {
     utilisateur.value = donnees
     localStorage.setItem('connecte', 'true')
     localStorage.setItem('utilisateur', JSON.stringify(donnees))
+    if (nouveauToken) {
+        token.value = nouveauToken
+        localStorage.setItem('token', nouveauToken)
+    }
 }
 
 export function deconnecter() {
     utilisateur.value = null
+    token.value       = null
     localStorage.removeItem('connecte')
     localStorage.removeItem('utilisateur')
+    localStorage.removeItem('token')
+}
+
+// Appel API authentifié. Une session expirée ou invalide (401) déconnecte
+// proprement plutôt que de laisser l'interface dans un état incohérent.
+export async function api(url, options = {}) {
+    const entetes = { ...(options.headers || {}) }
+    if (token.value) entetes.Authorization = `Bearer ${token.value}`
+    if (options.body && !entetes['Content-Type']) entetes['Content-Type'] = 'application/json'
+
+    const res = await fetch(url, { ...options, headers: entetes })
+    if (res.status === 401) {
+        deconnecter()
+        throw new Error('Session expirée')
+    }
+    return res
 }
 
 // Le localStorage n'est qu'un cache : le rôle fait autorité côté serveur.
-// Sans cette resynchronisation, une session ouverte par une version
-// antérieure de l'app reste connectée avec un profil périmé (sans `type`),
-// et un vrai admin se retrouve privé des pages admin.
 let resynchronise = false
 
 export async function rafraichir() {
     const id = utilisateur.value?.id
-    if (!id) {
+    if (!id || !token.value) {
         deconnecter()
         return null
     }
     try {
-        const res = await fetch(`/api/utilisateurs/${id}`)
+        const res = await api(`/api/utilisateurs/${id}`)
         if (!res.ok) {
-            // 404 : le compte a été supprimé entre-temps
             deconnecter()
             return null
         }
         connecter(await res.json())
         return utilisateur.value
     } catch {
-        // Serveur injoignable : on garde le cache plutôt que de déconnecter
+        // Session expirée (déjà déconnectée par api) ou serveur injoignable
         return utilisateur.value
     }
 }

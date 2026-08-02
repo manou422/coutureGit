@@ -52,7 +52,7 @@ async function seConnecter() {
         if (!res.ok) {
             erreur.value = data.erreur || 'Identifiants incorrects'
         } else {
-            connecter(data.utilisateur)
+            connecter(data.utilisateur, data.token)
             invaliderSynchro()
             router.push('/')
         }

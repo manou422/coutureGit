@@ -20,6 +20,7 @@
             </div>
 
             <button type="submit" :disabled="!apercu">Ajouter</button>
+            <p v-if="erreur" class="erreur">{{ erreur }}</p>
             <p v-if="succes" class="succes">Création ajoutée avec succès !</p>
         </form>
     </div>
@@ -35,6 +36,7 @@ const titre       = ref('')
 const description = ref('')
 const apercu      = ref(null)
 const succes      = ref(false)
+const erreur      = ref('')
 let   fichierBase64 = null
 
 function chargerFichier(e) {
@@ -49,11 +51,17 @@ function chargerFichier(e) {
 }
 
 async function soumettre() {
-    await ajouterPhoto({
-        photo:       fichierBase64,
-        titre:       titre.value,
-        description: description.value
-    })
+    erreur.value = ''
+    try {
+        await ajouterPhoto({
+            photo:       fichierBase64,
+            titre:       titre.value,
+            description: description.value
+        })
+    } catch (e) {
+        erreur.value = e.message
+        return
+    }
     succes.value = true
     setTimeout(() => router.push('/galerie'), 1200)
 }
@@ -129,6 +137,11 @@ button:disabled { background-color: #aaa; cursor: default; }
 .succes {
     text-align: center;
     color: #38a169;
+    font-weight: 600;
+}
+.erreur {
+    text-align: center;
+    color: #e53e3e;
     font-weight: 600;
 }
 </style>
