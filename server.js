@@ -135,10 +135,21 @@ function soiMeme(req, res, next) {
  * ------------------------------------------------------------------ */
 
 const SMTP_HOST = process.env.SMTP_HOST || ''
+const MAIL_MODE = process.env.MAIL_MODE || (SMTP_HOST ? 'smtp' : '')
 const SITE_URL  = (process.env.SITE_URL || '').replace(/\/$/, '')
+const MAIL_FROM = process.env.SMTP_FROM || 'album@localhost'
 
-const transport = SMTP_HOST
-    ? nodemailer.createTransport({
+let transport = null
+if (MAIL_MODE === 'sendmail') {
+    // Sur un hébergement mutualisé, le binaire sendmail local évite
+    // d'avoir à gérer des identifiants SMTP.
+    transport = nodemailer.createTransport({
+        sendmail: true,
+        newline:  'unix',
+        path:     process.env.SENDMAIL_PATH || '/usr/sbin/sendmail'
+    })
+} else if (MAIL_MODE === 'smtp') {
+    transport = nodemailer.createTransport({
         host:   SMTP_HOST,
         port:   parseInt(process.env.SMTP_PORT) || 587,
         secure: String(process.env.SMTP_SECURE) === 'true',
@@ -151,10 +162,23 @@ const transport = SMTP_HOST
         greetingTimeout:   10000,
         socketTimeout:     15000
     })
-    : null
+}
 
 if (!transport) {
-    console.warn('⚠  SMTP_HOST absent : la réinitialisation de mot de passe est désactivée.')
+    console.warn('⚠  Aucun envoi d\'emails configuré (MAIL_MODE absent).')
+}
+
+// Envoi tolérant : un échec d'email ne doit jamais faire échouer
+// l'action de l'utilisateur (connexion, inscription…).
+async function envoyerMail(destinataire, sujet, texte) {
+    if (!transport) return false
+    try {
+        await transport.sendMail({ from: MAIL_FROM, to: destinataire, subject: sujet, text: texte })
+        return true
+    } catch (e) {
+        console.error(`Envoi email à ${destinataire} échoué :`, e.message)
+        return false
+    }
 }
 
 // Jeton de réinitialisation : signé avec le hash du mot de passe actuel.
@@ -226,7 +250,23 @@ app.post('/api/login', async (req, res) => {
     const valide = await bcrypt.compare(motDePasse, rows[0].Mdp)
     if (!valide) return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' })
 
+    const premiereConnexion = rows[0].nombreConnexion === 0
     await pool.query('UPDATE utilisateurs SET nombreConnexion = nombreConnexion + 1 WHERE id = ?', [rows[0].id])
+
+    // Email de bienvenue à la toute première connexion seulement.
+    // Sans attendre l'envoi : la connexion ne doit pas en dépendre.
+    if (premiereConnexion) {
+        envoyerMail(
+            rows[0].mail,
+            'Bienvenue sur l\'album couture de Manuela',
+            `Bonjour ${rows[0].prenom},\n\n`
+          + `Bienvenue sur l'album de créations couture de Manuela !\n\n`
+          + `Vous pouvez dès maintenant parcourir la galerie et découvrir\n`
+          + `chaque création en détail${SITE_URL ? ` :\n\n${SITE_URL}\n` : '.\n'}\n`
+          + `Bonne visite,\n`
+          + `— L'album couture\n`
+        ).catch(() => {})
+    }
 
     const token = signerToken({ id: rows[0].id, exp: Date.now() + DUREE_SESSION })
     res.json({
@@ -283,20 +323,15 @@ app.post('/api/mot-de-passe-oublie', async (req, res) => {
     if (rows.length) {
         const u    = rows[0]
         const lien = `${SITE_URL}/reinitialiser/${signerReset(u.id, u.Mdp, Date.now() + DUREE_RESET)}`
-        try {
-            await transport.sendMail({
-                from:    process.env.SMTP_FROM || process.env.SMTP_USER,
-                to:      u.mail,
-                subject: 'Réinitialisation de votre mot de passe — Album couture',
-                text:    `Bonjour ${u.prenom},\n\n`
-                       + `Vous avez demandé à réinitialiser votre mot de passe.\n`
-                       + `Cliquez sur ce lien, valable une heure :\n\n${lien}\n\n`
-                       + `Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : `
-                       + `votre mot de passe restera inchangé.\n`
-            })
-        } catch (e) {
-            console.error('Envoi email échoué :', e.message)
-        }
+        await envoyerMail(
+            u.mail,
+            'Réinitialisation de votre mot de passe — Album couture',
+            `Bonjour ${u.prenom},\n\n`
+          + `Vous avez demandé à réinitialiser votre mot de passe.\n`
+          + `Cliquez sur ce lien, valable une heure :\n\n${lien}\n\n`
+          + `Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : `
+          + `votre mot de passe restera inchangé.\n`
+        )
     }
     res.json({ success: true })
 })
