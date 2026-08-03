@@ -250,23 +250,7 @@ app.post('/api/login', async (req, res) => {
     const valide = await bcrypt.compare(motDePasse, rows[0].Mdp)
     if (!valide) return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' })
 
-    const premiereConnexion = rows[0].nombreConnexion === 0
     await pool.query('UPDATE utilisateurs SET nombreConnexion = nombreConnexion + 1 WHERE id = ?', [rows[0].id])
-
-    // Email de bienvenue à la toute première connexion seulement.
-    // Sans attendre l'envoi : la connexion ne doit pas en dépendre.
-    if (premiereConnexion) {
-        envoyerMail(
-            rows[0].mail,
-            'Bienvenue sur l\'album couture de Manuela',
-            `Bonjour ${rows[0].prenom},\n\n`
-          + `Bienvenue sur l'album de créations couture de Manuela !\n\n`
-          + `Vous pouvez dès maintenant parcourir la galerie et découvrir\n`
-          + `chaque création en détail${SITE_URL ? ` :\n\n${SITE_URL}\n` : '.\n'}\n`
-          + `Bonne visite,\n`
-          + `— L'album couture\n`
-        ).catch(() => {})
-    }
 
     const token = signerToken({ id: rows[0].id, exp: Date.now() + DUREE_SESSION })
     res.json({
@@ -298,6 +282,21 @@ app.post('/api/inscription', async (req, res) => {
         'INSERT INTO utilisateurs (nom, prenom, type, nombreConnexion, mail, Mdp) VALUES (?, ?, ?, ?, ?, ?)',
         [nom, prenom, 'PA', 0, mail, hash]
     )
+
+    // Email de bienvenue, sans attendre l'envoi : l'inscription ne doit
+    // pas échouer si le serveur mail est indisponible.
+    envoyerMail(
+        mail,
+        'Bienvenue sur l\'album couture de Manuela',
+        `Bonjour ${prenom},\n\n`
+      + `Votre compte vient d'être créé sur l'album de créations couture\n`
+      + `de Manuela. Bienvenue !\n\n`
+      + `Vous pouvez dès maintenant vous connecter pour parcourir la galerie\n`
+      + `et découvrir chaque création en détail${SITE_URL ? ` :\n\n${SITE_URL}/login\n` : '.\n'}\n`
+      + `Bonne visite,\n`
+      + `— L'album couture\n`
+    ).catch(() => {})
+
     res.json({ success: true })
 })
 
