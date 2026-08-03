@@ -1,7 +1,7 @@
 # Mettre l'album en ligne sur Alwaysdata
 
 Objectif : un site accessible à ta famille depuis n'importe où, à une adresse
-du type `https://couture.alwaysdata.net`.
+du type `https://ortiz.alwaysdata.net`.
 
 Tout ce qui suit se fait **une seule fois**. Compte ~30 minutes.
 
@@ -30,12 +30,13 @@ Le fichier `.env` n'est jamais publié : il est listé dans `.gitignore`.
 
 ---
 
-## 1. Créer le compte Alwaysdata
+## 1. Créer le compte Alwaysdata ✅
 
-Sur https://www.alwaysdata.com → « Créer un compte » → offre **gratuite (100 Mo)**.
+Fait. Le compte est `ortiz`, ce qui donne :
 
-Choisis un nom de compte, par exemple `couture`. Il détermine l'adresse du site :
-`https://couture.alwaysdata.net`.
+- site : `https://ortiz.alwaysdata.net`
+- SSH : `ortiz@ssh-ortiz.alwaysdata.net`
+- MySQL : `mysql-ortiz.alwaysdata.net`
 
 ## 2. Créer la base de données
 
@@ -44,11 +45,11 @@ Dans l'administration : **Bases de données → MySQL → Ajouter une base**.
 - Nom : `couture_album`
 - Coche « Créer un utilisateur associé », et note le mot de passe généré
 
-Note ces cinq valeurs, elles serviront à l'étape 5 :
+Note ces cinq valeurs, elles serviront à l’étape 4 :
 
 | Champ | Où le trouver |
 |---|---|
-| hôte | `mysql-couture.alwaysdata.net` |
+| hôte | `mysql-ortiz.alwaysdata.net` |
 | port | `3306` |
 | base | `couture_album` |
 | utilisateur | celui créé ci-dessus |
@@ -75,14 +76,14 @@ Puis envoie le projet. Depuis la racine du projet, dans **Git Bash** :
 
 ```bash
 tar czf - --exclude=node_modules --exclude=.git --exclude=.env . \
-  | ssh couture@ssh-couture.alwaysdata.net 'mkdir -p ~/www && tar xzf - -C ~/www'
+  | ssh ortiz@ssh-ortiz.alwaysdata.net 'mkdir -p ~/www && tar xzf - -C ~/www'
 ```
 
 Cette commande compresse le projet et le décompresse directement sur le
 serveur, sans fichier intermédiaire.
 
 `--exclude=.env` est important : tes mots de passe locaux ne doivent pas
-partir sur le serveur, qui a sa propre configuration (étape 5).
+partir sur le serveur, qui a sa propre configuration (étape 4).
 
 > `rsync` serait plus pratique pour les mises à jour, mais il n'est pas
 > fourni avec Git Bash sous Windows. `tar` fait l'affaire.
@@ -90,7 +91,7 @@ partir sur le serveur, qui a sa propre configuration (étape 5).
 Enfin, installe les dépendances du serveur :
 
 ```bash
-ssh couture@ssh-couture.alwaysdata.net
+ssh ortiz@ssh-ortiz.alwaysdata.net
 cd ~/www && npm install --omit=dev
 ```
 
@@ -98,17 +99,17 @@ Cela n'installe que le serveur (Express, MySQL, bcrypt) : quelques Mo.
 **N'installe pas** les dépendances de `album/` sur le serveur, elles
 dépassent largement le quota gratuit.
 
-## 5. Configurer les variables d'environnement
+## 4. Configurer les variables d'environnement
 
 Dans **Environnement → Variables d'environnement**, ajoute :
 
 | Nom | Valeur |
 |---|---|
-| `DB_HOST` | `mysql-couture.alwaysdata.net` |
+| `DB_HOST` | `mysql-ortiz.alwaysdata.net` |
 | `DB_PORT` | `3306` |
 | `DB_NAME` | `couture_album` |
-| `DB_USER` | l'utilisateur de l'étape 2 |
-| `DB_PASSWORD` | le mot de passe de l'étape 2 |
+| `DB_USER` | l’utilisateur de l’étape 2 |
+| `DB_PASSWORD` | le mot de passe de l’étape 2 |
 | `SESSION_SECRET` | voir ci-dessous |
 | `ADMIN_EMAIL` | ton adresse email |
 | `ADMIN_PASSWORD` | un mot de passe solide, **différent** du local |
@@ -125,21 +126,21 @@ déconnecté — ce n'est pas grave, mais évite de la modifier sans raison.
 `ADMIN_EMAIL` et `ADMIN_PASSWORD` ne servent qu'au tout premier démarrage,
 pour créer ton compte administrateur dans la base vide.
 
-## 6. Créer le site
+## 5. Créer le site
 
 Dans **Web → Sites → Ajouter un site** :
 
-- Adresse : `couture.alwaysdata.net`
+- Adresse : `ortiz.alwaysdata.net`
 - Type : **Node.js**
-- Répertoire de travail : `/home/couture/www`
+- Répertoire de travail : `/home/ortiz/www`
 - Commande : `node server.js`
 - Version de Node : 20 ou supérieure
 
 Alwaysdata impose le port via la variable `PORT`, que `server.js` lit déjà.
 
-Clique sur **Redémarrer**, puis ouvre `https://couture.alwaysdata.net`.
+Clique sur **Redémarrer**, puis ouvre `https://ortiz.alwaysdata.net`.
 
-## 7. Transférer tes créations existantes
+## 6. Transférer tes créations existantes
 
 La base de production démarre vide. Tes trois créations actuelles
 (Pochon 1, Pochette ZIP, Chouchou) sont dans la base locale.
@@ -154,19 +155,19 @@ Sur ton PC, exporte-les :
 Envoie le fichier, puis importe-le :
 
 ```bash
-scp creations.sql couture@ssh-couture.alwaysdata.net:~/
-ssh couture@ssh-couture.alwaysdata.net
-mysql -h mysql-couture.alwaysdata.net -u TON_USER -p couture_album < ~/creations.sql
+scp creations.sql ortiz@ssh-ortiz.alwaysdata.net:~/
+ssh ortiz@ssh-ortiz.alwaysdata.net
+mysql -h mysql-ortiz.alwaysdata.net -u TON_USER -p couture_album < ~/creations.sql
 rm ~/creations.sql
 ```
 
 Les comptes utilisateurs ne sont **pas** transférés : ton compte admin est
-recréé par l'étape 5, et ta famille s'inscrira elle-même.
+recréé par l’étape 4, et ta famille s'inscrira elle-même.
 
 Si tu préfères repartir de zéro, saute cette étape et ajoute tes créations
 depuis le site une fois en ligne.
 
-## 8. Créer les comptes de ta famille
+## 7. Créer les comptes de ta famille
 
 Chaque personne s'inscrit elle-même depuis le lien, via « Créer un compte ».
 Elle reçoit automatiquement le rôle `PA` : elle peut **voir** l'album, mais
@@ -185,7 +186,7 @@ Depuis la racine du projet, sur ton PC :
 ```bash
 cd album && npm run build && cd ..
 tar czf - --exclude=node_modules --exclude=.git --exclude=.env . \
-  | ssh couture@ssh-couture.alwaysdata.net 'tar xzf - -C ~/www'
+  | ssh ortiz@ssh-ortiz.alwaysdata.net 'tar xzf - -C ~/www'
 ```
 
 Puis **Redémarrer** le site dans l'administration Alwaysdata.
