@@ -71,16 +71,21 @@ npm run build
 cd ..
 ```
 
-Puis envoie le projet (une seule commande, depuis la racine du projet) :
+Puis envoie le projet. Depuis la racine du projet, dans **Git Bash** :
 
 ```bash
-rsync -av --delete \
-  --exclude node_modules --exclude .git --exclude .env \
-  ./ couture@ssh-couture.alwaysdata.net:~/www/
+tar czf - --exclude=node_modules --exclude=.git --exclude=.env . \
+  | ssh couture@ssh-couture.alwaysdata.net 'mkdir -p ~/www && tar xzf - -C ~/www'
 ```
 
-`--exclude .env` est important : tes mots de passe locaux ne doivent pas
+Cette commande compresse le projet et le décompresse directement sur le
+serveur, sans fichier intermédiaire.
+
+`--exclude=.env` est important : tes mots de passe locaux ne doivent pas
 partir sur le serveur, qui a sa propre configuration (étape 5).
+
+> `rsync` serait plus pratique pour les mises à jour, mais il n'est pas
+> fourni avec Git Bash sous Windows. `tar` fait l'affaire.
 
 Enfin, installe les dépendances du serveur :
 
@@ -92,18 +97,6 @@ cd ~/www && npm install --omit=dev
 Cela n'installe que le serveur (Express, MySQL, bcrypt) : quelques Mo.
 **N'installe pas** les dépendances de `album/` sur le serveur, elles
 dépassent largement le quota gratuit.
-
-### Si `rsync` n'est pas disponible sur ton PC
-
-Sous Windows, `rsync` est fourni avec Git Bash. S'il manque, remplace la
-commande par :
-
-```bash
-scp -r server.js seed.js package.json package-lock.json album/dist \
-  couture@ssh-couture.alwaysdata.net:~/www/
-```
-
-en veillant à ce que `~/www/album/dist` existe côté serveur.
 
 ## 5. Configurer les variables d'environnement
 
@@ -146,7 +139,34 @@ Alwaysdata impose le port via la variable `PORT`, que `server.js` lit déjà.
 
 Clique sur **Redémarrer**, puis ouvre `https://couture.alwaysdata.net`.
 
-## 7. Créer les comptes de ta famille
+## 7. Transférer tes créations existantes
+
+La base de production démarre vide. Tes trois créations actuelles
+(Pochon 1, Pochette ZIP, Chouchou) sont dans la base locale.
+
+Sur ton PC, exporte-les :
+
+```bash
+"C:/Program Files/MySQL/MySQL Server 8.0/bin/mysqldump" \
+  -u root -p album creations > creations.sql
+```
+
+Envoie le fichier, puis importe-le :
+
+```bash
+scp creations.sql couture@ssh-couture.alwaysdata.net:~/
+ssh couture@ssh-couture.alwaysdata.net
+mysql -h mysql-couture.alwaysdata.net -u TON_USER -p couture_album < ~/creations.sql
+rm ~/creations.sql
+```
+
+Les comptes utilisateurs ne sont **pas** transférés : ton compte admin est
+recréé par l'étape 5, et ta famille s'inscrira elle-même.
+
+Si tu préfères repartir de zéro, saute cette étape et ajoute tes créations
+depuis le site une fois en ligne.
+
+## 8. Créer les comptes de ta famille
 
 Chaque personne s'inscrit elle-même depuis le lien, via « Créer un compte ».
 Elle reçoit automatiquement le rôle `PA` : elle peut **voir** l'album, mais
@@ -164,9 +184,8 @@ Depuis la racine du projet, sur ton PC :
 
 ```bash
 cd album && npm run build && cd ..
-rsync -av --delete \
-  --exclude node_modules --exclude .git --exclude .env \
-  ./ couture@ssh-couture.alwaysdata.net:~/www/
+tar czf - --exclude=node_modules --exclude=.git --exclude=.env . \
+  | ssh couture@ssh-couture.alwaysdata.net 'tar xzf - -C ~/www'
 ```
 
 Puis **Redémarrer** le site dans l'administration Alwaysdata.
