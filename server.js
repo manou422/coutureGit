@@ -130,6 +130,29 @@ function soiMeme(req, res, next) {
 })()
 
 /* ------------------------------------------------------------------ *
+ *  Code d'invitation
+ * ------------------------------------------------------------------ */
+
+// Si INVITATION_CODE est défini, l'inscription l'exige. Sinon elle reste
+// libre — pratique en développement, mais à définir en production.
+const CODE_INVITATION = process.env.INVITATION_CODE || ''
+if (!CODE_INVITATION) {
+    console.warn('⚠  INVITATION_CODE absent : l\'inscription est ouverte à tous.')
+}
+
+function codeValide(fourni) {
+    if (!CODE_INVITATION) return true
+    const a = Buffer.from(String(fourni || ''))
+    const b = Buffer.from(CODE_INVITATION)
+    return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
+// Permet au formulaire de savoir s'il doit afficher le champ.
+app.get('/api/inscription/config', (req, res) => {
+    res.json({ codeRequis: !!CODE_INVITATION })
+})
+
+/* ------------------------------------------------------------------ *
  *  Routes publiques
  * ------------------------------------------------------------------ */
 
@@ -157,9 +180,12 @@ app.post('/api/login', async (req, res) => {
 })
 
 app.post('/api/inscription', async (req, res) => {
-    const { nom, prenom, mail, motDePasse } = req.body
+    const { nom, prenom, mail, motDePasse, codeInvitation } = req.body
     if (!nom || !prenom || !mail || !motDePasse) {
         return res.status(400).json({ erreur: 'Tous les champs sont obligatoires' })
+    }
+    if (!codeValide(codeInvitation)) {
+        return res.status(403).json({ erreur: 'Code d\'invitation incorrect' })
     }
     const [existing] = await pool.query('SELECT id FROM utilisateurs WHERE mail = ?', [mail])
     if (existing.length) return res.status(409).json({ erreur: 'Cet email est déjà utilisé' })

@@ -29,6 +29,11 @@
                         </button>
                     </div>
                 </div>
+                <div v-if="codeRequis" class="champ">
+                    <label>Code d'invitation</label>
+                    <input v-model="codeInvitation" type="text" placeholder="Code reçu avec le lien" required />
+                    <p class="aide">Ce code vous a été communiqué par Manuela avec l'adresse du site.</p>
+                </div>
                 <p v-if="erreur" class="erreur">{{ erreur }}</p>
                 <p v-if="succes" class="succes">{{ succes }}</p>
                 <button type="submit" :disabled="chargement">
@@ -41,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router     = useRouter()
@@ -54,6 +59,18 @@ const erreur     = ref('')
 const succes     = ref('')
 const chargement = ref(false)
 const voirMdp    = ref(false)
+const codeInvitation = ref('')
+const codeRequis     = ref(false)
+
+onMounted(async () => {
+    try {
+        const res = await fetch('/api/inscription/config')
+        codeRequis.value = (await res.json()).codeRequis
+    } catch {
+        // Serveur injoignable : le champ reste masqué, l'inscription
+        // échouera de toute façon et affichera l'erreur.
+    }
+})
 
 async function sInscrire() {
     erreur.value = ''
@@ -67,7 +84,7 @@ async function sInscrire() {
         const res  = await fetch('/api/inscription', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ nom: nom.value, prenom: prenom.value, mail: mail.value, motDePasse: motDePasse.value })
+            body:    JSON.stringify({ nom: nom.value, prenom: prenom.value, mail: mail.value, motDePasse: motDePasse.value, codeInvitation: codeInvitation.value })
         })
         const data = await res.json()
         if (!res.ok) {
@@ -171,6 +188,11 @@ button:disabled { background-color: #aaa; cursor: default; }
     color: #e53e3e;
     font-size: 0.9rem;
     text-align: center;
+}
+.aide {
+    color: #888;
+    font-size: 0.78rem;
+    margin-top: 2px;
 }
 .succes {
     color: #38a169;
