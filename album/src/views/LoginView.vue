@@ -21,6 +21,7 @@
                 <button type="submit" :disabled="chargement">
                     {{ chargement ? 'Connexion...' : 'Se connecter' }}
                 </button>
+                <p class="lien"><RouterLink to="/mot-de-passe-oublie">Mot de passe oublié ?</RouterLink></p>
                 <p class="lien">Pas encore inscrit ? <RouterLink to="/inscription">Créer un compte</RouterLink></p>
             </form>
         </div>

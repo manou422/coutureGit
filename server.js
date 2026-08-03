@@ -4,6 +4,7 @@ const mysql    = require('mysql2/promise')
 const bcrypt   = require('bcryptjs')
 const crypto   = require('crypto')
 const path     = require('path')
+const nodemailer = require('nodemailer')
 
 const app  = express()
 const PORT = process.env.PORT || 3000
@@ -130,6 +131,67 @@ function soiMeme(req, res, next) {
 })()
 
 /* ------------------------------------------------------------------ *
+ *  Envoi d'emails (réinitialisation de mot de passe)
+ * ------------------------------------------------------------------ */
+
+const SMTP_HOST = process.env.SMTP_HOST || ''
+const SITE_URL  = (process.env.SITE_URL || '').replace(/\/$/, '')
+
+const transport = SMTP_HOST
+    ? nodemailer.createTransport({
+        host:   SMTP_HOST,
+        port:   parseInt(process.env.SMTP_PORT) || 587,
+        secure: String(process.env.SMTP_SECURE) === 'true',
+        auth:   process.env.SMTP_USER
+                    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
+                    : undefined,
+        // Sans ces limites, un serveur mail injoignable bloquerait la
+        // requête HTTP indéfiniment.
+        connectionTimeout: 10000,
+        greetingTimeout:   10000,
+        socketTimeout:     15000
+    })
+    : null
+
+if (!transport) {
+    console.warn('⚠  SMTP_HOST absent : la réinitialisation de mot de passe est désactivée.')
+}
+
+// Jeton de réinitialisation : signé avec le hash du mot de passe actuel.
+// Conséquence utile — dès que le mot de passe change, tous les jetons
+// émis auparavant deviennent invalides. Pas de table à gérer.
+const DUREE_RESET = 60 * 60 * 1000 // 1 heure
+
+function signerReset(id, hashActuel, exp) {
+    const corps = Buffer.from(JSON.stringify({ id, exp })).toString('base64url')
+    const sig   = crypto.createHmac('sha256', SECRET + hashActuel).update(corps).digest('base64url')
+    return `${corps}.${sig}`
+}
+
+async function verifierReset(token) {
+    if (!token) return null
+    const [corps, sig] = String(token).split('.')
+    if (!corps || !sig) return null
+
+    let payload
+    try {
+        payload = JSON.parse(Buffer.from(corps, 'base64url').toString())
+    } catch {
+        return null
+    }
+    if (!payload.exp || payload.exp < Date.now()) return null
+
+    const [rows] = await pool.query('SELECT id, mail, Mdp FROM utilisateurs WHERE id = ?', [payload.id])
+    if (!rows.length) return null
+
+    const attendu = crypto.createHmac('sha256', SECRET + rows[0].Mdp).update(corps).digest('base64url')
+    const a = Buffer.from(sig), b = Buffer.from(attendu)
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null
+
+    return rows[0]
+}
+
+/* ------------------------------------------------------------------ *
  *  Code d'invitation
  * ------------------------------------------------------------------ */
 
@@ -196,6 +258,60 @@ app.post('/api/inscription', async (req, res) => {
         'INSERT INTO utilisateurs (nom, prenom, type, nombreConnexion, mail, Mdp) VALUES (?, ?, ?, ?, ?, ?)',
         [nom, prenom, 'PA', 0, mail, hash]
     )
+    res.json({ success: true })
+})
+
+/* ------------------------------------------------------------------ *
+ *  Mot de passe oublié
+ * ------------------------------------------------------------------ */
+
+app.get('/api/mot-de-passe-oublie/config', (req, res) => {
+    res.json({ disponible: !!transport })
+})
+
+app.post('/api/mot-de-passe-oublie', async (req, res) => {
+    if (!transport) {
+        return res.status(503).json({ erreur: 'L\'envoi d\'emails n\'est pas configuré sur ce serveur.' })
+    }
+    const { mail } = req.body
+    if (!mail) return res.status(400).json({ erreur: 'Adresse email requise' })
+
+    const [rows] = await pool.query('SELECT id, prenom, mail, Mdp FROM utilisateurs WHERE mail = ?', [mail])
+
+    // Réponse identique que le compte existe ou non : sinon la page
+    // permettrait de découvrir quelles adresses sont inscrites.
+    if (rows.length) {
+        const u    = rows[0]
+        const lien = `${SITE_URL}/reinitialiser/${signerReset(u.id, u.Mdp, Date.now() + DUREE_RESET)}`
+        try {
+            await transport.sendMail({
+                from:    process.env.SMTP_FROM || process.env.SMTP_USER,
+                to:      u.mail,
+                subject: 'Réinitialisation de votre mot de passe — Album couture',
+                text:    `Bonjour ${u.prenom},\n\n`
+                       + `Vous avez demandé à réinitialiser votre mot de passe.\n`
+                       + `Cliquez sur ce lien, valable une heure :\n\n${lien}\n\n`
+                       + `Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : `
+                       + `votre mot de passe restera inchangé.\n`
+            })
+        } catch (e) {
+            console.error('Envoi email échoué :', e.message)
+        }
+    }
+    res.json({ success: true })
+})
+
+app.post('/api/reinitialiser', async (req, res) => {
+    const { token, motDePasse } = req.body
+    if (!motDePasse || motDePasse.length < 8) {
+        return res.status(400).json({ erreur: 'Le mot de passe doit faire au moins 8 caractères' })
+    }
+    const utilisateur = await verifierReset(token)
+    if (!utilisateur) {
+        return res.status(400).json({ erreur: 'Ce lien est invalide ou a expiré. Refaites une demande.' })
+    }
+    const hash = await bcrypt.hash(motDePasse, 10)
+    await pool.query('UPDATE utilisateurs SET Mdp = ? WHERE id = ?', [hash, utilisateur.id])
     res.json({ success: true })
 })
 

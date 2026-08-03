@@ -10,12 +10,16 @@ import ModifierView from './views/ModifierView.vue'
 import LoginView from './views/LoginView.vue'
 import InscriptionView from './views/InscriptionView.vue'
 import CompteView from './views/CompteView.vue'
+import MotDePasseOublieView from './views/MotDePasseOublieView.vue'
+import ReinitialiserView from './views/ReinitialiserView.vue'
 
 const router = createRouter({
     history: createWebHistory(),
     routes: [
         { path: '/login',           component: LoginView },
-        { path: '/inscription',     component: InscriptionView },
+        { path: '/inscription',        component: InscriptionView },
+        { path: '/mot-de-passe-oublie', component: MotDePasseOublieView },
+        { path: '/reinitialiser/:token', component: ReinitialiserView },
         { path: '/',                component: HomeView,        meta: { requiresAuth: true } },
         { path: '/galerie',         component: GalerieView,     meta: { requiresAuth: true } },
         { path: '/description/:id', component: DescriptionView, meta: { requiresAuth: true } },

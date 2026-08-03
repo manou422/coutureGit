@@ -13,10 +13,13 @@ import NavBar from './components/NavBar.vue'
 import BoutonRetour from './components/BoutonRetour.vue'
 
 const route = useRoute()
-const pagesAuth = ['/login', '/inscription']
-const afficherNav     = computed(() => !pagesAuth.includes(route.path))
+const pagesAuth = ['/login', '/inscription', '/mot-de-passe-oublie']
+const estPageAuth = (chemin) =>
+    pagesAuth.includes(chemin) || chemin.startsWith('/reinitialiser/')
+
+const afficherNav     = computed(() => !estPageAuth(route.path))
 const afficherRetour  = computed(() =>
-    !pagesAuth.includes(route.path) &&
+    !estPageAuth(route.path) &&
     route.path !== '/' &&
     route.path !== '/ajouter' &&
     route.path !== '/galerie'
