@@ -7,10 +7,15 @@ Tout ce qui suit se fait **une seule fois**. Compte ~30 minutes.
 
 ---
 
-## Avant de commencer : changer les deux mots de passe compromis
+## Avant de commencer : changer les deux mots de passe
 
-Ils ont été publiés sur GitHub et restent lisibles dans l'historique du dépôt.
-Tant qu'ils sont valables, le reste ne sert à rien.
+Le dépôt GitHub est privé aujourd'hui, mais il a été **public jusqu'au
+2 août 2026**, avec ces deux mots de passe en clair dans le code. GitHub
+étant scanné en permanence par des robots collecteurs de secrets, il faut
+les considérer comme connus. Ce n'est plus urgent, mais c'est à faire.
+
+Si tu n'en changes qu'un, prends celui de MySQL : c'est celui qui ouvre
+toute la base.
 
 1. **Mot de passe MySQL local** — dans MySQL Workbench ou en ligne de commande :
    ```sql
@@ -53,35 +58,52 @@ Note ces cinq valeurs, elles serviront à l'étape 5 :
 
 Dans **Accès distant → SSH**, active l'accès et note l'identifiant.
 
-Depuis ton PC, dans le dossier du projet :
+> Le dépôt GitHub est **privé** : un `git clone` depuis le serveur Alwaysdata
+> échouerait, faute d'authentification. On envoie donc les fichiers
+> directement depuis ton PC. C'est aussi plus simple : rien à configurer
+> côté GitHub.
 
-```bash
-ssh couture@ssh-couture.alwaysdata.net
-git clone https://github.com/manou422/coutureGit.git ~/www
-cd ~/www
-npm install --omit=dev
-```
-
-`npm install` à la racine n'installe que le serveur (Express, MySQL, bcrypt) :
-quelques Mo. **N'installe pas** les dépendances de `album/` sur le serveur,
-elles dépassent le quota gratuit.
-
-## 4. Envoyer le build du site
-
-Le dossier `album/dist` n'est pas dans Git. Construis-le sur ton PC :
+D'abord, construis le site sur ton PC :
 
 ```bash
 cd album
 npm run build
+cd ..
 ```
 
-Puis envoie-le (depuis ton PC, pas depuis le SSH) :
+Puis envoie le projet (une seule commande, depuis la racine du projet) :
 
 ```bash
-scp -r album/dist couture@ssh-couture.alwaysdata.net:~/www/album/
+rsync -av --delete \
+  --exclude node_modules --exclude .git --exclude .env \
+  ./ couture@ssh-couture.alwaysdata.net:~/www/
 ```
 
-À refaire à chaque fois que tu modifies l'apparence du site.
+`--exclude .env` est important : tes mots de passe locaux ne doivent pas
+partir sur le serveur, qui a sa propre configuration (étape 5).
+
+Enfin, installe les dépendances du serveur :
+
+```bash
+ssh couture@ssh-couture.alwaysdata.net
+cd ~/www && npm install --omit=dev
+```
+
+Cela n'installe que le serveur (Express, MySQL, bcrypt) : quelques Mo.
+**N'installe pas** les dépendances de `album/` sur le serveur, elles
+dépassent largement le quota gratuit.
+
+### Si `rsync` n'est pas disponible sur ton PC
+
+Sous Windows, `rsync` est fourni avec Git Bash. S'il manque, remplace la
+commande par :
+
+```bash
+scp -r server.js seed.js package.json package-lock.json album/dist \
+  couture@ssh-couture.alwaysdata.net:~/www/
+```
+
+en veillant à ce que `~/www/album/dist` existe côté serveur.
 
 ## 5. Configurer les variables d'environnement
 
@@ -138,17 +160,19 @@ davantage, il faudrait ajouter un code d'invitation — dis-le-moi si tu veux.
 
 ## Mettre à jour le site plus tard
 
-```bash
-# sur ton PC : construire et envoyer le front
-cd album && npm run build
-scp -r dist couture@ssh-couture.alwaysdata.net:~/www/album/
+Depuis la racine du projet, sur ton PC :
 
-# sur le serveur : récupérer le code
-ssh couture@ssh-couture.alwaysdata.net
-cd ~/www && git pull && npm install --omit=dev
+```bash
+cd album && npm run build && cd ..
+rsync -av --delete \
+  --exclude node_modules --exclude .git --exclude .env \
+  ./ couture@ssh-couture.alwaysdata.net:~/www/
 ```
 
 Puis **Redémarrer** le site dans l'administration Alwaysdata.
+
+Inutile de relancer `npm install`, sauf si tu as ajouté une dépendance
+au serveur.
 
 ---
 
