@@ -9,6 +9,16 @@
             </div>
 
             <div class="champ">
+                <label>Catégorie <span class="optionnel">(facultatif)</span></label>
+                <input v-model="categorie" type="text" list="categories-existantes"
+                       placeholder="Pochons, Trousses, Sacs..." maxlength="100" />
+                <datalist id="categories-existantes">
+                    <option v-for="c in categories" :key="c.nom" :value="c.nom" />
+                </datalist>
+                <p class="poids">Choisissez une catégorie existante ou tapez-en une nouvelle.</p>
+            </div>
+
+            <div class="champ">
                 <label>Description</label>
                 <textarea v-model="description" placeholder="Décrivez votre création..." rows="4"></textarea>
             </div>
@@ -41,7 +51,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { categories, chargerCategories } from '../stores/auth.js'
 import { useRouter } from 'vue-router'
 import { ajouterPhoto } from '../stores/photos.js'
 import { redimensionner, poidsLisible } from '../utils/image.js'
@@ -51,12 +62,15 @@ const LIMITE = 12
 const router      = useRouter()
 const titre       = ref('')
 const description = ref('')
+const categorie   = ref('')
 const photos      = ref([])
 const succes      = ref(false)
 const erreur      = ref('')
 const chargementPhotos = ref(false)
 
 const poidsTotal = computed(() => poidsLisible(photos.value.join('')))
+
+onMounted(chargerCategories)
 
 async function chargerFichiers(e) {
     const fichiers = Array.from(e.target.files || [])
@@ -89,7 +103,8 @@ async function soumettre() {
         await ajouterPhoto({
             photos:      photos.value,
             titre:       titre.value,
-            description: description.value
+            description: description.value,
+            categorie:   categorie.value
         })
     } catch (e) {
         erreur.value = e.message

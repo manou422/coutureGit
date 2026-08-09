@@ -50,6 +50,24 @@ export async function api(url, options = {}) {
 // Récupère l'image d'une création. Les balises <img> ne peuvent pas
 // porter d'en-tête d'authentification : on passe donc par fetch, puis
 // par une URL d'objet locale.
+// Catégories utilisées, partagées entre la barre de navigation et les
+// formulaires (qui proposent les libellés déjà existants).
+export const categories    = ref([])
+export const sansCategorie = ref(0)
+
+export async function chargerCategories() {
+    if (!token.value) return
+    try {
+        const res = await api('/api/categories')
+        if (!res.ok) return
+        const data = await res.json()
+        categories.value    = data.categories
+        sansCategorie.value = data.sansCategorie
+    } catch {
+        // Réseau indisponible : on garde la liste précédente.
+    }
+}
+
 export async function urlImage(id) {
     return chargerBlob(`/api/photos/${id}/image`)
 }

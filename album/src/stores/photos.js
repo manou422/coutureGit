@@ -3,9 +3,12 @@ import { api } from './auth.js'
 
 export const photos = ref([])
 
-export async function chargerPhotos() {
-    const res = await api('/api/photos')
-    photos.value = await res.json()
+export async function chargerPhotos(categorie = null) {
+    const url = categorie
+        ? `/api/photos?categorie=${encodeURIComponent(categorie)}`
+        : '/api/photos'
+    const res = await api(url)
+    if (res.ok) photos.value = await res.json()
 }
 
 export async function ajouterPhoto(creation) {

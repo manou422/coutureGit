@@ -112,6 +112,18 @@ function soiMeme(req, res, next) {
         )
     `)
 
+    // Catégorie : simple libellé porté par la création. Pas de table
+    // dédiée — une catégorie existe tant qu'une création s'en réclame,
+    // ce qui évite d'avoir à gérer des catégories vides.
+    const [colonne] = await pool.query(`
+        SELECT COUNT(*) AS presente FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'creations' AND COLUMN_NAME = 'categorie'
+    `)
+    if (!colonne[0].presente) {
+        await pool.query('ALTER TABLE creations ADD COLUMN categorie VARCHAR(100) NULL')
+        console.log('Colonne `categorie` ajoutée à la table creations.')
+    }
+
     // Une création peut porter plusieurs photos. `ordre` fixe leur
     // succession ; la première (ordre 0) sert de couverture en galerie.
     await pool.query(`
@@ -419,6 +431,14 @@ app.delete('/api/utilisateurs/:id', authentifier, soiMeme, async (req, res) => {
 
 const LIMITE_PHOTOS = 12
 
+// Une catégorie vide vaut « non classée » (NULL) plutôt qu'une chaîne
+// vide : sans ça, "" et NULL formeraient deux groupes distincts.
+function nettoyerCategorie(valeur) {
+    if (typeof valeur !== 'string') return null
+    const propre = valeur.trim().slice(0, 100)
+    return propre.length ? propre : null
+}
+
 // Renvoie l'image décodée en binaire plutôt qu'en base64 : un tiers de
 // poids en moins, et le navigateur peut la mettre en cache.
 function envoyerImage(res, donnees) {
@@ -444,14 +464,45 @@ function normaliserImages(corps) {
 // Mo. La galerie s'affiche aussitôt, chaque vignette se charge ensuite
 // pour son compte via /api/photos/:id/image.
 app.get('/api/photos', authentifier, async (req, res) => {
+    // `?categorie=` filtre la galerie ; « sans » cible les créations
+    // qui n'ont pas encore été classées.
+    const filtre = req.query.categorie
+    let condition = '', params = []
+    if (filtre === 'sans') {
+        condition = 'WHERE c.categorie IS NULL OR c.categorie = ""'
+    } else if (filtre) {
+        condition = 'WHERE c.categorie = ?'
+        params = [filtre]
+    }
+
     const [rows] = await pool.query(`
-        SELECT c.id, c.titre, c.description, COUNT(p.id) AS nbPhotos
+        SELECT c.id, c.titre, c.description, c.categorie, COUNT(p.id) AS nbPhotos
         FROM creations c
         LEFT JOIN photos p ON p.creationId = c.id
-        GROUP BY c.id, c.titre, c.description
+        ${condition}
+        GROUP BY c.id, c.titre, c.description, c.categorie
         ORDER BY c.id
-    `)
+    `, params)
     res.json(rows.map(r => ({ ...r, nbPhotos: Number(r.nbPhotos) })))
+})
+
+// Catégories réellement utilisées, avec le nombre de créations.
+app.get('/api/categories', authentifier, async (req, res) => {
+    const [rows] = await pool.query(`
+        SELECT categorie AS nom, COUNT(*) AS nombre
+        FROM creations
+        WHERE categorie IS NOT NULL AND categorie <> ''
+        GROUP BY categorie
+        ORDER BY categorie
+    `)
+    const [sans] = await pool.query(`
+        SELECT COUNT(*) AS nombre FROM creations
+        WHERE categorie IS NULL OR categorie = ''
+    `)
+    res.json({
+        categories: rows.map(r => ({ nom: r.nom, nombre: Number(r.nombre) })),
+        sansCategorie: Number(sans[0].nombre)
+    })
 })
 
 // Une image quelconque, par son identifiant propre.
@@ -475,7 +526,7 @@ app.get('/api/photos/:id/image', authentifier, async (req, res) => {
 // sous forme d'identifiants seulement — chacune est ensuite chargée
 // séparément par la page.
 app.get('/api/photos/:id', authentifier, async (req, res) => {
-    const [rows] = await pool.query('SELECT id, titre, description FROM creations WHERE id = ?', [req.params.id])
+    const [rows] = await pool.query('SELECT id, titre, description, categorie FROM creations WHERE id = ?', [req.params.id])
     if (!rows.length) return res.status(404).json({ erreur: 'Non trouvé' })
 
     const [images] = await pool.query(
@@ -493,8 +544,8 @@ app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
     if (!images.length) return res.status(400).json({ erreur: 'Au moins une photo est requise' })
 
     const [result] = await pool.query(
-        'INSERT INTO creations (titre, description, photo) VALUES (?, ?, ?)',
-        [titre, description || '', images[0]]
+        'INSERT INTO creations (titre, description, categorie, photo) VALUES (?, ?, ?, ?)',
+        [titre, description || '', nettoyerCategorie(req.body.categorie), images[0]]
     )
     for (const [i, img] of images.entries()) {
         await pool.query('INSERT INTO photos (creationId, ordre, photo) VALUES (?, ?, ?)', [result.insertId, i, img])
@@ -505,8 +556,8 @@ app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
 app.put('/api/photos/:id', authentifier, adminSeulement, async (req, res) => {
     const { titre, description } = req.body
     await pool.query(
-        'UPDATE creations SET titre = ?, description = ? WHERE id = ?',
-        [titre, description || '', req.params.id]
+        'UPDATE creations SET titre = ?, description = ?, categorie = ? WHERE id = ?',
+        [titre, description || '', nettoyerCategorie(req.body.categorie), req.params.id]
     )
 
     // `photos` absent du corps : seuls le titre et la description changent,

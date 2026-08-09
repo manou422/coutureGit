@@ -9,6 +9,15 @@
             </div>
 
             <div class="champ">
+                <label>Catégorie <span class="optionnel">(facultatif)</span></label>
+                <input v-model="categorie" type="text" list="categories-existantes"
+                       placeholder="Pochons, Trousses, Sacs..." maxlength="100" />
+                <datalist id="categories-existantes">
+                    <option v-for="c in categories" :key="c.nom" :value="c.nom" />
+                </datalist>
+            </div>
+
+            <div class="champ">
                 <label>Description</label>
                 <textarea v-model="description" rows="4"></textarea>
             </div>
@@ -46,7 +55,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, urlPhoto } from '../stores/auth.js'
+import { api, urlPhoto, categories, chargerCategories } from '../stores/auth.js'
 import { redimensionner } from '../utils/image.js'
 
 const LIMITE = 12
@@ -57,6 +66,7 @@ const router = useRouter()
 const photo       = ref(null)
 const titre       = ref('')
 const description = ref('')
+const categorie   = ref('')
 const succes      = ref(false)
 const erreur      = ref('')
 const chargementPhotos = ref(false)
@@ -67,11 +77,13 @@ const elements = ref([])
 let compteur = 0
 
 onMounted(async () => {
+    chargerCategories()
     const res = await api(`/api/photos/${route.params.id}`)
     if (!res.ok) return
     photo.value       = await res.json()
     titre.value       = photo.value.titre
     description.value = photo.value.description
+    categorie.value   = photo.value.categorie || ''
 
     elements.value = photo.value.images.map(img => ({
         cle: `existante-${img.id}`, existanteId: img.id, url: null
@@ -129,7 +141,10 @@ async function sauvegarder() {
     )
     const res = await api(`/api/photos/${route.params.id}`, {
         method: 'PUT',
-        body:   JSON.stringify({ titre: titre.value, description: description.value, photos })
+        body:   JSON.stringify({
+            titre: titre.value, description: description.value,
+            categorie: categorie.value, photos
+        })
     })
     if (!res.ok) {
         const data = await res.json().catch(() => ({}))
