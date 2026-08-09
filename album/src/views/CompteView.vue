@@ -65,9 +65,6 @@
                 <button class="btn-modifier" @click="ouvrirEdition">Modifier</button>
                 <button class="btn-supprimer" @click="supprimerCompte">Supprimer le compte</button>
             </div>
-            <div v-if="!modeEdition" class="btns-bas" style="margin-top: 12px;">
-                <button class="btn-deconnexion" @click="seDeconnecter">Se déconnecter</button>
-            </div>
         </div>
     </div>
 </template>
@@ -127,11 +124,6 @@ async function sauvegarder() {
     } finally {
         chargement.value = false
     }
-}
-
-function seDeconnecter() {
-    deconnecter()
-    router.push('/login')
 }
 
 async function supprimerCompte() {
@@ -310,19 +302,6 @@ input:focus { border-color: #3355cc; }
     transition: background 0.2s;
 }
 .btn-supprimer:hover { background: #c53030; }
-.btn-deconnexion {
-    width: 100%;
-    padding: 12px;
-    background: #718096;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-.btn-deconnexion:hover { background: #4a5568; }
 .erreur { color: #e53e3e; font-size: 0.9rem; text-align: center; }
 .succes { color: #38a169; font-size: 0.9rem; text-align: center; }
 </style>
