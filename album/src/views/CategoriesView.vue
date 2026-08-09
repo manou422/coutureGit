@@ -4,7 +4,8 @@
 
         <form v-if="estAdmin" class="ajout" @submit.prevent="creer">
             <input v-model="nouveau" type="text" maxlength="100"
-                   placeholder="Nouvelle catégorie (ex. Pochons)" />
+                   placeholder="Nouvelle catégorie (ex. Pochons)"
+                   @input="erreur = ''" />
             <button type="submit" :disabled="!nouveau.trim() || occupe">Ajouter</button>
         </form>
 
@@ -75,9 +76,17 @@ async function creer() {
             body:   JSON.stringify({ nom: nouveau.value })
         })
         const data = await res.json().catch(() => ({}))
-        if (!res.ok) { erreur.value = data.erreur || 'Création impossible'; return }
+        if (!res.ok) {
+            // Sans `erreur` dans la réponse, le serveur n'a pas répondu ce
+            // qu'on attendait : mieux vaut le dire que rester vague.
+            erreur.value = data.erreur
+                || `Création impossible (erreur ${res.status}). Le serveur n'est peut-être pas à jour.`
+            return
+        }
         nouveau.value = ''
         await chargerCategories()
+    } catch {
+        erreur.value = 'Erreur de connexion au serveur'
     } finally {
         occupe.value = false
     }

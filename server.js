@@ -543,8 +543,12 @@ app.post('/api/categories', authentifier, adminSeulement, async (req, res) => {
     const nom = nettoyerCategorie(req.body.nom)
     if (!nom) return res.status(400).json({ erreur: 'Le nom est obligatoire' })
 
-    const [existe] = await pool.query('SELECT id FROM categories WHERE nom = ?', [nom])
-    if (existe.length) return res.status(409).json({ erreur: 'Cette catégorie existe déjà' })
+    // On renvoie le libellé déjà en base, pas celui saisi : si la
+    // différence n'est qu'une casse ou un espace, autant la montrer.
+    const [existe] = await pool.query('SELECT nom FROM categories WHERE nom = ?', [nom])
+    if (existe.length) {
+        return res.status(409).json({ erreur: `La catégorie « ${existe[0].nom} » existe déjà` })
+    }
 
     const [r] = await pool.query('INSERT INTO categories (nom) VALUES (?)', [nom])
     res.json({ id: r.insertId, nom, nombre: 0 })
