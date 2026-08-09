@@ -124,6 +124,37 @@ function soiMeme(req, res, next) {
         console.log('Colonne `categorie` ajoutée à la table creations.')
     }
 
+    // Liste déclarée des catégories : elle permet d'en créer une avant
+    // qu'aucune création ne s'en réclame. Le libellé reste porté par
+    // `creations.categorie` — renommer met les deux à jour.
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS categories (
+            id  INT AUTO_INCREMENT PRIMARY KEY,
+            nom VARCHAR(100) NOT NULL UNIQUE
+        )
+    `)
+    // Reprise des libellés déjà utilisés avant l'existence de la table.
+    await pool.query(`
+        INSERT IGNORE INTO categories (nom)
+        SELECT DISTINCT categorie FROM creations
+        WHERE categorie IS NOT NULL AND categorie <> ''
+    `)
+
+    // Journal des connexions, à la journée : une ligne par personne et
+    // par jour. La contrainte d'unicité fait que se reconnecter dix fois
+    // dans la journée ne compte qu'une visite — c'est bien « combien de
+    // personnes », pas « combien de connexions ».
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS connexions (
+            id            INT AUTO_INCREMENT PRIMARY KEY,
+            utilisateurId INT NOT NULL,
+            jour          DATE NOT NULL,
+            UNIQUE KEY unique_visite (utilisateurId, jour),
+            CONSTRAINT fk_connexions_utilisateur FOREIGN KEY (utilisateurId)
+                REFERENCES utilisateurs(id) ON DELETE CASCADE
+        )
+    `)
+
     // Une création peut porter plusieurs photos. `ordre` fixe leur
     // succession ; la première (ordre 0) sert de couverture en galerie.
     await pool.query(`
@@ -295,6 +326,8 @@ app.post('/api/login', async (req, res) => {
     if (!valide) return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' })
 
     await pool.query('UPDATE utilisateurs SET nombreConnexion = nombreConnexion + 1 WHERE id = ?', [rows[0].id])
+    // INSERT IGNORE : la 2e connexion du jour ne crée pas de doublon.
+    await pool.query('INSERT IGNORE INTO connexions (utilisateurId, jour) VALUES (?, CURDATE())', [rows[0].id])
 
     const token = signerToken({ id: rows[0].id, exp: Date.now() + DUREE_SESSION })
     res.json({
@@ -486,22 +519,102 @@ app.get('/api/photos', authentifier, async (req, res) => {
     res.json(rows.map(r => ({ ...r, nbPhotos: Number(r.nbPhotos) })))
 })
 
-// Catégories réellement utilisées, avec le nombre de créations.
+// Catégories déclarées, avec le nombre de créations de chacune. Une
+// catégorie encore vide apparaît donc, avec un compte à zéro.
 app.get('/api/categories', authentifier, async (req, res) => {
     const [rows] = await pool.query(`
-        SELECT categorie AS nom, COUNT(*) AS nombre
-        FROM creations
-        WHERE categorie IS NOT NULL AND categorie <> ''
-        GROUP BY categorie
-        ORDER BY categorie
+        SELECT cat.id, cat.nom, COUNT(c.id) AS nombre
+        FROM categories cat
+        LEFT JOIN creations c ON c.categorie = cat.nom
+        GROUP BY cat.id, cat.nom
+        ORDER BY cat.nom
     `)
     const [sans] = await pool.query(`
         SELECT COUNT(*) AS nombre FROM creations
         WHERE categorie IS NULL OR categorie = ''
     `)
     res.json({
-        categories: rows.map(r => ({ nom: r.nom, nombre: Number(r.nombre) })),
+        categories: rows.map(r => ({ id: r.id, nom: r.nom, nombre: Number(r.nombre) })),
         sansCategorie: Number(sans[0].nombre)
+    })
+})
+
+app.post('/api/categories', authentifier, adminSeulement, async (req, res) => {
+    const nom = nettoyerCategorie(req.body.nom)
+    if (!nom) return res.status(400).json({ erreur: 'Le nom est obligatoire' })
+
+    const [existe] = await pool.query('SELECT id FROM categories WHERE nom = ?', [nom])
+    if (existe.length) return res.status(409).json({ erreur: 'Cette catégorie existe déjà' })
+
+    const [r] = await pool.query('INSERT INTO categories (nom) VALUES (?)', [nom])
+    res.json({ id: r.insertId, nom, nombre: 0 })
+})
+
+app.put('/api/categories/:id', authentifier, adminSeulement, async (req, res) => {
+    const nom = nettoyerCategorie(req.body.nom)
+    if (!nom) return res.status(400).json({ erreur: 'Le nom est obligatoire' })
+
+    const [actuelle] = await pool.query('SELECT nom FROM categories WHERE id = ?', [req.params.id])
+    if (!actuelle.length) return res.status(404).json({ erreur: 'Catégorie introuvable' })
+
+    const [collision] = await pool.query('SELECT id FROM categories WHERE nom = ? AND id <> ?', [nom, req.params.id])
+    if (collision.length) return res.status(409).json({ erreur: 'Une autre catégorie porte déjà ce nom' })
+
+    await pool.query('UPDATE categories SET nom = ? WHERE id = ?', [nom, req.params.id])
+    // Le libellé est recopié dans les créations : on les suit.
+    await pool.query('UPDATE creations SET categorie = ? WHERE categorie = ?', [nom, actuelle[0].nom])
+    res.json({ success: true })
+})
+
+app.delete('/api/categories/:id', authentifier, adminSeulement, async (req, res) => {
+    const [actuelle] = await pool.query('SELECT nom FROM categories WHERE id = ?', [req.params.id])
+    if (!actuelle.length) return res.status(404).json({ erreur: 'Catégorie introuvable' })
+
+    // Les créations ne sont jamais supprimées : elles redeviennent
+    // simplement « non classées ».
+    const [maj] = await pool.query('UPDATE creations SET categorie = NULL WHERE categorie = ?', [actuelle[0].nom])
+    await pool.query('DELETE FROM categories WHERE id = ?', [req.params.id])
+    res.json({ success: true, declassees: maj.affectedRows })
+})
+
+/* ------------------------------------------------------------------ *
+ *  Statistiques de fréquentation — réservées à l'administrateur
+ * ------------------------------------------------------------------ */
+
+app.get('/api/statistiques', authentifier, adminSeulement, async (req, res) => {
+    // DATE_FORMAT plutôt que l'objet Date : évite tout décalage de fuseau
+    // entre le serveur et le navigateur, qui ferait glisser une visite
+    // d'un jour à l'autre.
+    const [parJour] = await pool.query(`
+        SELECT DATE_FORMAT(cx.jour, '%Y-%m-%d') AS jour,
+               COUNT(*) AS personnes,
+               GROUP_CONCAT(CONCAT(u.prenom, ' ', u.nom) ORDER BY u.prenom SEPARATOR ', ') AS qui
+        FROM connexions cx
+        JOIN utilisateurs u ON u.id = cx.utilisateurId
+        GROUP BY cx.jour
+        ORDER BY cx.jour DESC
+        LIMIT 90
+    `)
+    const [membres] = await pool.query(`
+        SELECT u.id, u.prenom, u.nom, u.type, u.nombreConnexion,
+               DATE_FORMAT(MAX(cx.jour), '%Y-%m-%d') AS derniereVisite,
+               COUNT(cx.id) AS joursDeVisite
+        FROM utilisateurs u
+        LEFT JOIN connexions cx ON cx.utilisateurId = u.id
+        GROUP BY u.id, u.prenom, u.nom, u.type, u.nombreConnexion
+        ORDER BY MAX(cx.jour) IS NULL, MAX(cx.jour) DESC
+    `)
+    const [total] = await pool.query('SELECT COUNT(*) AS nombre FROM utilisateurs')
+
+    res.json({
+        parJour: parJour.map(r => ({ jour: r.jour, personnes: Number(r.personnes), qui: r.qui })),
+        membres: membres.map(r => ({
+            id: r.id, prenom: r.prenom, nom: r.nom, type: r.type,
+            nombreConnexion: Number(r.nombreConnexion),
+            derniereVisite: r.derniereVisite,
+            joursDeVisite: Number(r.joursDeVisite)
+        })),
+        nombreMembres: Number(total[0].nombre)
     })
 })
 

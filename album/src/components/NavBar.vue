@@ -27,6 +27,10 @@
             </RouterLink>
 
             <div v-if="ouvert" class="sous-menu">
+                <RouterLink to="/categories" class="categorie categorie-toutes">
+                    <span class="nom">Toutes les catégories</span>
+                </RouterLink>
+
                 <RouterLink
                     v-for="c in categories"
                     :key="c.nom"
@@ -56,6 +60,7 @@
         </div>
 
         <RouterLink v-if="estAdmin" to="/ajouter">Ajouter</RouterLink>
+        <RouterLink v-if="estAdmin" to="/statistiques">Fréquentation</RouterLink>
         <RouterLink to="/compte">Compte</RouterLink>
 
         <!-- `margin-top: auto` pousse le bouton en bas, quel que soit le
@@ -179,6 +184,17 @@ nav > a.router-link-active { background-color: rgba(255,255,255,0.25); font-weig
 .categorie:hover { background-color: rgba(255,255,255,0.15); color: white; }
 .categorie.actif { background-color: rgba(255,255,255,0.25); color: white; font-weight: 600; }
 .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Entrée d'en-tête : séparée des catégories elles-mêmes. */
+.categorie-toutes {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.22);
+    border-radius: 6px 6px 0 0;
+}
+.categorie-toutes .nom { white-space: normal; line-height: 1.3; }
 .nom-sans { font-style: italic; opacity: 0.85; }
 .nombre {
     font-size: 0.72rem;
