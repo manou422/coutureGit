@@ -1,7 +1,8 @@
 <template>
     <div class="description-page">
         <template v-if="photo">
-            <img :src="photo.photo" :alt="photo.titre" />
+            <img v-if="src" :src="src" :alt="photo.titre" />
+            <div v-else class="attente"></div>
             <h1>{{ photo.titre }}</h1>
             <p>{{ photo.description }}</p>
         </template>
@@ -10,17 +11,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from '../stores/auth.js'
+import { api, urlImage } from '../stores/auth.js'
 
 const route = useRoute()
 const photo = ref(null)
+const src   = ref(null)
 
 onMounted(async () => {
+    // Le titre et la description arrivent aussitôt ; l'image suit.
     const res = await api(`/api/photos/${route.params.id}`)
-    if (res.ok) photo.value = await res.json()
+    if (!res.ok) return
+    photo.value = await res.json()
+    src.value   = await urlImage(route.params.id)
 })
+onUnmounted(() => { if (src.value) URL.revokeObjectURL(src.value) })
 </script>
 
 <style scoped>
@@ -45,6 +51,22 @@ img {
     border-radius: 12px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     object-fit: contain;
+}
+.attente {
+    width: 320px;
+    max-width: 100%;
+    height: 320px;
+    border-radius: 12px;
+    background: linear-gradient(100deg, #e8e8e8 30%, #f4f4f4 50%, #e8e8e8 70%);
+    background-size: 200% 100%;
+    animation: glisse 1.2s ease-in-out infinite;
+}
+@keyframes glisse {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .attente { animation: none; }
 }
 h1 { font-size: 1.8rem; color: #222; }
 p {

@@ -17,6 +17,7 @@
                 <label>Photo</label>
                 <input type="file" accept="image/*" @change="chargerFichier" required />
                 <img v-if="apercu" :src="apercu" class="apercu" alt="aperçu" />
+                <p v-if="poids" class="poids">Photo optimisée pour le web : {{ poids }}</p>
             </div>
 
             <button type="submit" :disabled="!apercu">Ajouter</button>
@@ -30,6 +31,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ajouterPhoto } from '../stores/photos.js'
+import { redimensionner, poidsLisible } from '../utils/image.js'
 
 const router      = useRouter()
 const titre       = ref('')
@@ -37,17 +39,21 @@ const description = ref('')
 const apercu      = ref(null)
 const succes      = ref(false)
 const erreur      = ref('')
+const poids       = ref('')
 let   fichierBase64 = null
 
-function chargerFichier(e) {
+async function chargerFichier(e) {
     const fichier = e.target.files[0]
     if (!fichier) return
-    const reader = new FileReader()
-    reader.onload = () => {
-        apercu.value  = reader.result
-        fichierBase64 = reader.result
+    erreur.value = ''
+    try {
+        const reduite = await redimensionner(fichier)
+        apercu.value  = reduite
+        fichierBase64 = reduite
+        poids.value   = poidsLisible(reduite)
+    } catch (err) {
+        erreur.value = err.message
     }
-    reader.readAsDataURL(fichier)
 }
 
 async function soumettre() {
@@ -143,5 +149,10 @@ button:disabled { background-color: #aaa; cursor: default; }
     text-align: center;
     color: #e53e3e;
     font-weight: 600;
+}
+.poids {
+    font-size: 0.82rem;
+    color: #777;
+    margin-top: 6px;
 }
 </style>

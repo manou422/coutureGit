@@ -1,7 +1,8 @@
 <template>
     <RouterLink :to="`/description/${photo.id}`" class="carte">
         <div class="img-wrapper">
-            <img :src="photo.photo" :alt="photo.titre" />
+            <img v-if="src" :src="src" :alt="photo.titre" />
+            <div v-else class="attente" aria-label="Chargement de la photo"></div>
         </div>
         <div class="description">
             <h3>{{ photo.titre }}</h3>
@@ -19,10 +20,15 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supprimerPhoto } from '../stores/photos.js'
-import { estAdmin } from '../stores/auth.js'
+import { estAdmin, urlImage } from '../stores/auth.js'
 
 const props = defineProps({ photo: Object })
+
+const src = ref(null)
+onMounted(async () => { src.value = await urlImage(props.photo.id) })
+onUnmounted(() => { if (src.value) URL.revokeObjectURL(src.value) })
 
 async function supprimer() {
     if (!confirm(`Supprimer "${props.photo.titre}" ?`)) return
@@ -65,6 +71,23 @@ async function supprimer() {
     max-height: 100%;
     object-fit: contain;
     transition: transform 0.3s ease;
+}
+/* Réserve la place de l'image pendant son chargement : la grille ne
+   sursaute pas quand les photos arrivent une à une. */
+.attente {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(100deg, #eee 30%, #f6f6f6 50%, #eee 70%);
+    background-size: 200% 100%;
+    animation: glisse 1.2s ease-in-out infinite;
+}
+@keyframes glisse {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .attente { animation: none; }
 }
 .carte:hover .img-wrapper img {
     transform: scale(1.04);

@@ -47,6 +47,19 @@ export async function api(url, options = {}) {
     return res
 }
 
+// Récupère l'image d'une création. Les balises <img> ne peuvent pas
+// porter d'en-tête d'authentification : on passe donc par fetch, puis
+// par une URL d'objet locale.
+export async function urlImage(id) {
+    try {
+        const res = await api(`/api/photos/${id}/image`)
+        if (!res.ok) return null
+        return URL.createObjectURL(await res.blob())
+    } catch {
+        return null
+    }
+}
+
 // Le localStorage n'est qu'un cache : le rôle fait autorité côté serveur.
 let resynchronise = false
 

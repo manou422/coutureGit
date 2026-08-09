@@ -36,6 +36,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../stores/auth.js'
+import { redimensionner } from '../utils/image.js'
 
 const route  = useRoute()
 const router = useRouter()
@@ -49,22 +50,25 @@ const erreur      = ref('')
 let   nouvellephoto = null
 
 onMounted(async () => {
-    const res  = await api(`/api/photos/${route.params.id}`)
+    // avecPhoto=1 : l'écran doit pouvoir renvoyer l'image inchangée.
+    const res  = await api(`/api/photos/${route.params.id}?avecPhoto=1`)
     photo.value = await res.json()
     titre.value       = photo.value.titre
     description.value = photo.value.description
     apercu.value      = photo.value.photo
 })
 
-function chargerFichier(e) {
+async function chargerFichier(e) {
     const fichier = e.target.files[0]
     if (!fichier) return
-    const reader = new FileReader()
-    reader.onload = () => {
-        apercu.value   = reader.result
-        nouvellephoto  = reader.result
+    erreur.value = ''
+    try {
+        const reduite = await redimensionner(fichier)
+        apercu.value  = reduite
+        nouvellephoto = reduite
+    } catch (err) {
+        erreur.value = err.message
     }
-    reader.readAsDataURL(fichier)
 }
 
 async function sauvegarder() {

@@ -385,25 +385,43 @@ app.delete('/api/utilisateurs/:id', authentifier, soiMeme, async (req, res) => {
  *  Photos — lecture pour tout membre connecté, écriture pour l'admin
  * ------------------------------------------------------------------ */
 
+// Liste SANS les images : quelques centaines d'octets au lieu de plusieurs
+// Mo. La galerie s'affiche aussitôt, chaque vignette se charge ensuite
+// pour son compte via /api/photos/:id/image.
 app.get('/api/photos', authentifier, async (req, res) => {
-    const [rows] = await pool.query('SELECT id, titre, description, photo FROM creations')
-    res.json(rows.map(row => ({
-        id:          row.id,
-        titre:       row.titre,
-        description: row.description,
-        photo:       row.photo ? row.photo.toString() : null
-    })))
+    const [rows] = await pool.query('SELECT id, titre, description FROM creations ORDER BY id')
+    res.json(rows)
 })
 
+// L'image seule, décodée en binaire plutôt que renvoyée en base64 :
+// un tiers de poids en moins, et le navigateur peut la mettre en cache.
+app.get('/api/photos/:id/image', authentifier, async (req, res) => {
+    const [rows] = await pool.query('SELECT photo FROM creations WHERE id = ?', [req.params.id])
+    if (!rows.length || !rows[0].photo) return res.status(404).end()
+
+    const donnees = rows[0].photo.toString()
+    const trouve  = /^data:([^;]+);base64,(.*)$/s.exec(donnees)
+    if (!trouve) return res.status(415).json({ erreur: 'Format d\'image non reconnu' })
+
+    res.set('Content-Type', trouve[1])
+    res.set('Cache-Control', 'private, max-age=86400')
+    res.send(Buffer.from(trouve[2], 'base64'))
+})
+
+// L'image n'est jointe que sur demande explicite (écran de modification,
+// qui doit pouvoir la renvoyer telle quelle si elle n'est pas remplacée).
 app.get('/api/photos/:id', authentifier, async (req, res) => {
-    const [rows] = await pool.query('SELECT id, titre, description, photo FROM creations WHERE id = ?', [req.params.id])
+    const avecPhoto = req.query.avecPhoto === '1'
+    const colonnes  = avecPhoto ? 'id, titre, description, photo' : 'id, titre, description'
+    const [rows] = await pool.query(`SELECT ${colonnes} FROM creations WHERE id = ?`, [req.params.id])
     if (!rows.length) return res.status(404).json({ erreur: 'Non trouvé' })
+
     const row = rows[0]
     res.json({
         id:          row.id,
         titre:       row.titre,
         description: row.description,
-        photo:       row.photo ? row.photo.toString() : null
+        ...(avecPhoto ? { photo: row.photo ? row.photo.toString() : null } : {})
     })
 })
 
