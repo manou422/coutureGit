@@ -3,6 +3,9 @@
         <div class="img-wrapper">
             <img v-if="src" :src="src" :alt="photo.titre" />
             <div v-else class="attente" aria-label="Chargement de la photo"></div>
+            <span v-if="photo.nbPhotos > 1" class="compteur">
+                {{ photo.nbPhotos }} photos
+            </span>
         </div>
         <div class="description">
             <h3>{{ photo.titre }}</h3>
@@ -57,7 +60,20 @@ async function supprimer() {
     transform: translateY(-6px) scale(1.02);
     box-shadow: 0 10px 24px rgba(0,0,0,0.18);
 }
+.compteur {
+    position: absolute;
+    right: 14px;
+    bottom: 8px;
+    background: rgba(0, 0, 0, 0.62);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+}
 .img-wrapper {
+    position: relative;
     width: 100%;
     height: 280px;
     display: flex;

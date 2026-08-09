@@ -8,10 +8,10 @@ export async function chargerPhotos() {
     photos.value = await res.json()
 }
 
-export async function ajouterPhoto(photo) {
+export async function ajouterPhoto(creation) {
     const res = await api('/api/photos', {
         method: 'POST',
-        body:   JSON.stringify(photo)
+        body:   JSON.stringify(creation)
     })
     if (!res.ok) {
         const data = await res.json().catch(() => ({}))

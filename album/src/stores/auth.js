@@ -51,8 +51,17 @@ export async function api(url, options = {}) {
 // porter d'en-tête d'authentification : on passe donc par fetch, puis
 // par une URL d'objet locale.
 export async function urlImage(id) {
+    return chargerBlob(`/api/photos/${id}/image`)
+}
+
+// Une photo précise, par son identifiant propre.
+export async function urlPhoto(imageId) {
+    return chargerBlob(`/api/images/${imageId}`)
+}
+
+async function chargerBlob(url) {
     try {
-        const res = await api(`/api/photos/${id}/image`)
+        const res = await api(url)
         if (!res.ok) return null
         return URL.createObjectURL(await res.blob())
     } catch {

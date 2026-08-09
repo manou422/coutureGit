@@ -112,6 +112,38 @@ function soiMeme(req, res, next) {
         )
     `)
 
+    // Une création peut porter plusieurs photos. `ordre` fixe leur
+    // succession ; la première (ordre 0) sert de couverture en galerie.
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS photos (
+            id         INT AUTO_INCREMENT PRIMARY KEY,
+            creationId INT NOT NULL,
+            ordre      INT NOT NULL DEFAULT 0,
+            photo      LONGBLOB,
+            CONSTRAINT fk_photos_creation FOREIGN KEY (creationId)
+                REFERENCES creations(id) ON DELETE CASCADE
+        )
+    `)
+
+    // Reprise des créations d'avant la table `photos` : leur image unique
+    // devient leur première photo. `creations.photo` est conservée telle
+    // quelle — rien n'est effacé, la migration peut être rejouée sans
+    // risque de doublon.
+    const [aReprendre] = await pool.query(`
+        SELECT c.id FROM creations c
+        LEFT JOIN photos p ON p.creationId = c.id
+        WHERE c.photo IS NOT NULL AND p.id IS NULL
+    `)
+    for (const { id } of aReprendre) {
+        await pool.query(
+            'INSERT INTO photos (creationId, ordre, photo) SELECT id, 0, photo FROM creations WHERE id = ?',
+            [id]
+        )
+    }
+    if (aReprendre.length) {
+        console.log(`${aReprendre.length} création(s) reprise(s) dans la table photos.`)
+    }
+
     // Crée le compte administrateur au premier démarrage, jamais en dur.
     const [admins] = await pool.query('SELECT id FROM utilisateurs WHERE type = ? LIMIT 1', ['admin'])
     if (!admins.length) {
@@ -385,62 +417,135 @@ app.delete('/api/utilisateurs/:id', authentifier, soiMeme, async (req, res) => {
  *  Photos — lecture pour tout membre connecté, écriture pour l'admin
  * ------------------------------------------------------------------ */
 
+const LIMITE_PHOTOS = 12
+
+// Renvoie l'image décodée en binaire plutôt qu'en base64 : un tiers de
+// poids en moins, et le navigateur peut la mettre en cache.
+function envoyerImage(res, donnees) {
+    const trouve = /^data:([^;]+);base64,(.*)$/s.exec(donnees)
+    if (!trouve) return res.status(415).json({ erreur: 'Format d\'image non reconnu' })
+    res.set('Content-Type', trouve[1])
+    res.set('Cache-Control', 'private, max-age=86400')
+    res.send(Buffer.from(trouve[2], 'base64'))
+}
+
+// Accepte `photos: [...]` (plusieurs) ou `photo: "..."` (ancien format,
+// une seule) et renvoie une liste propre, bornée.
+function normaliserImages(corps) {
+    const brut = Array.isArray(corps.photos)
+        ? corps.photos
+        : (corps.photo ? [corps.photo] : [])
+    return brut
+        .filter(v => typeof v === 'string' && v.length)
+        .slice(0, LIMITE_PHOTOS)
+}
+
 // Liste SANS les images : quelques centaines d'octets au lieu de plusieurs
 // Mo. La galerie s'affiche aussitôt, chaque vignette se charge ensuite
 // pour son compte via /api/photos/:id/image.
 app.get('/api/photos', authentifier, async (req, res) => {
-    const [rows] = await pool.query('SELECT id, titre, description FROM creations ORDER BY id')
-    res.json(rows)
+    const [rows] = await pool.query(`
+        SELECT c.id, c.titre, c.description, COUNT(p.id) AS nbPhotos
+        FROM creations c
+        LEFT JOIN photos p ON p.creationId = c.id
+        GROUP BY c.id, c.titre, c.description
+        ORDER BY c.id
+    `)
+    res.json(rows.map(r => ({ ...r, nbPhotos: Number(r.nbPhotos) })))
 })
 
-// L'image seule, décodée en binaire plutôt que renvoyée en base64 :
-// un tiers de poids en moins, et le navigateur peut la mettre en cache.
-app.get('/api/photos/:id/image', authentifier, async (req, res) => {
-    const [rows] = await pool.query('SELECT photo FROM creations WHERE id = ?', [req.params.id])
+// Une image quelconque, par son identifiant propre.
+app.get('/api/images/:imageId', authentifier, async (req, res) => {
+    const [rows] = await pool.query('SELECT photo FROM photos WHERE id = ?', [req.params.imageId])
     if (!rows.length || !rows[0].photo) return res.status(404).end()
-
-    const donnees = rows[0].photo.toString()
-    const trouve  = /^data:([^;]+);base64,(.*)$/s.exec(donnees)
-    if (!trouve) return res.status(415).json({ erreur: 'Format d\'image non reconnu' })
-
-    res.set('Content-Type', trouve[1])
-    res.set('Cache-Control', 'private, max-age=86400')
-    res.send(Buffer.from(trouve[2], 'base64'))
+    envoyerImage(res, rows[0].photo.toString())
 })
 
-// L'image n'est jointe que sur demande explicite (écran de modification,
-// qui doit pouvoir la renvoyer telle quelle si elle n'est pas remplacée).
+// Photo de couverture d'une création (la première dans l'ordre).
+app.get('/api/photos/:id/image', authentifier, async (req, res) => {
+    const [rows] = await pool.query(
+        'SELECT photo FROM photos WHERE creationId = ? ORDER BY ordre, id LIMIT 1',
+        [req.params.id]
+    )
+    if (!rows.length || !rows[0].photo) return res.status(404).end()
+    envoyerImage(res, rows[0].photo.toString())
+})
+
+// Détail d'une création : ses métadonnées et la liste de ses photos,
+// sous forme d'identifiants seulement — chacune est ensuite chargée
+// séparément par la page.
 app.get('/api/photos/:id', authentifier, async (req, res) => {
-    const avecPhoto = req.query.avecPhoto === '1'
-    const colonnes  = avecPhoto ? 'id, titre, description, photo' : 'id, titre, description'
-    const [rows] = await pool.query(`SELECT ${colonnes} FROM creations WHERE id = ?`, [req.params.id])
+    const [rows] = await pool.query('SELECT id, titre, description FROM creations WHERE id = ?', [req.params.id])
     if (!rows.length) return res.status(404).json({ erreur: 'Non trouvé' })
 
-    const row = rows[0]
-    res.json({
-        id:          row.id,
-        titre:       row.titre,
-        description: row.description,
-        ...(avecPhoto ? { photo: row.photo ? row.photo.toString() : null } : {})
-    })
+    const [images] = await pool.query(
+        'SELECT id, ordre FROM photos WHERE creationId = ? ORDER BY ordre, id',
+        [req.params.id]
+    )
+    res.json({ ...rows[0], images })
 })
 
 app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
-    const { titre, description, photo } = req.body
+    const { titre, description } = req.body
     if (!titre) return res.status(400).json({ erreur: 'Le titre est obligatoire' })
+
+    const images = normaliserImages(req.body)
+    if (!images.length) return res.status(400).json({ erreur: 'Au moins une photo est requise' })
+
     const [result] = await pool.query(
         'INSERT INTO creations (titre, description, photo) VALUES (?, ?, ?)',
-        [titre, description || '', photo || null]
+        [titre, description || '', images[0]]
     )
-    res.json({ id: result.insertId, titre, description, photo })
+    for (const [i, img] of images.entries()) {
+        await pool.query('INSERT INTO photos (creationId, ordre, photo) VALUES (?, ?, ?)', [result.insertId, i, img])
+    }
+    res.json({ id: result.insertId, titre, description, nbPhotos: images.length })
 })
 
 app.put('/api/photos/:id', authentifier, adminSeulement, async (req, res) => {
-    const { titre, description, photo } = req.body
+    const { titre, description } = req.body
     await pool.query(
-        'UPDATE creations SET titre = ?, description = ?, photo = ? WHERE id = ?',
-        [titre, description || '', photo || null, req.params.id]
+        'UPDATE creations SET titre = ?, description = ? WHERE id = ?',
+        [titre, description || '', req.params.id]
     )
+
+    // `photos` absent du corps : seuls le titre et la description changent,
+    // les images restent en place.
+    if (req.body.photos === undefined && req.body.photo === undefined) {
+        return res.json({ success: true })
+    }
+
+    const images = normaliserImages(req.body)
+    if (!images.length) return res.status(400).json({ erreur: 'Au moins une photo est requise' })
+
+    // Les entrées « conserver:<id> » désignent des photos déjà stockées :
+    // on ne les retéléverse pas, on se contente de les renuméroter.
+    const aGarder = images.filter(v => v.startsWith('conserver:')).map(v => Number(v.slice(10)))
+    if (aGarder.length) {
+        await pool.query(
+            `DELETE FROM photos WHERE creationId = ? AND id NOT IN (${aGarder.map(() => '?').join(',')})`,
+            [req.params.id, ...aGarder]
+        )
+    } else {
+        await pool.query('DELETE FROM photos WHERE creationId = ?', [req.params.id])
+    }
+
+    for (const [i, valeur] of images.entries()) {
+        if (valeur.startsWith('conserver:')) {
+            await pool.query('UPDATE photos SET ordre = ? WHERE id = ? AND creationId = ?',
+                [i, Number(valeur.slice(10)), req.params.id])
+        } else {
+            await pool.query('INSERT INTO photos (creationId, ordre, photo) VALUES (?, ?, ?)',
+                [req.params.id, i, valeur])
+        }
+    }
+
+    // La colonne historique suit la couverture, pour rester cohérente.
+    const [couv] = await pool.query(
+        'SELECT photo FROM photos WHERE creationId = ? ORDER BY ordre, id LIMIT 1', [req.params.id])
+    await pool.query('UPDATE creations SET photo = ? WHERE id = ?',
+        [couv.length ? couv[0].photo : null, req.params.id])
+
     res.json({ success: true })
 })
 

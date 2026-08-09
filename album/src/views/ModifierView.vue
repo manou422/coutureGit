@@ -14,16 +14,27 @@
             </div>
 
             <div class="champ">
-                <label>Photo actuelle</label>
-                <img :src="apercu" class="apercu" alt="aperçu" />
+                <label>Photos <span class="optionnel">({{ elements.length }} sur 12)</span></label>
+
+                <div v-if="elements.length" class="apercus">
+                    <div v-for="(el, i) in elements" :key="el.cle" class="apercu-item">
+                        <img v-if="el.url" :src="el.url" alt="" />
+                        <span v-else class="attente"></span>
+                        <span v-if="i === 0" class="badge-couverture">Couverture</span>
+                        <button type="button" class="retirer" :aria-label="`Retirer la photo ${i + 1}`"
+                                @click="retirer(i)">×</button>
+                        <button v-if="i > 0" type="button" class="promouvoir"
+                                aria-label="Mettre en couverture" title="Mettre en couverture"
+                                @click="promouvoir(i)">↑</button>
+                    </div>
+                </div>
+                <p v-else class="poids">Aucune photo. Ajoutez-en au moins une.</p>
+
+                <input type="file" accept="image/*" multiple @change="ajouterFichiers" class="fichier" />
+                <p v-if="chargementPhotos" class="poids">Optimisation en cours...</p>
             </div>
 
-            <div class="champ">
-                <label>Changer la photo (optionnel)</label>
-                <input type="file" accept="image/*" @change="chargerFichier" />
-            </div>
-
-            <button type="submit">Enregistrer</button>
+            <button type="submit" :disabled="!elements.length || chargementPhotos">Enregistrer</button>
             <p v-if="erreur" class="erreur">{{ erreur }}</p>
             <p v-if="succes" class="succes">Modifications enregistrées !</p>
         </form>
@@ -33,10 +44,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api } from '../stores/auth.js'
+import { api, urlPhoto } from '../stores/auth.js'
 import { redimensionner } from '../utils/image.js'
+
+const LIMITE = 12
 
 const route  = useRoute()
 const router = useRouter()
@@ -44,45 +57,83 @@ const router = useRouter()
 const photo       = ref(null)
 const titre       = ref('')
 const description = ref('')
-const apercu      = ref(null)
 const succes      = ref(false)
 const erreur      = ref('')
-let   nouvellephoto = null
+const chargementPhotos = ref(false)
+
+// Chaque élément est soit une photo déjà en base (on garde son id, sans
+// la retéléverser), soit une nouvelle image en attente d'envoi.
+const elements = ref([])
+let compteur = 0
 
 onMounted(async () => {
-    // avecPhoto=1 : l'écran doit pouvoir renvoyer l'image inchangée.
-    const res  = await api(`/api/photos/${route.params.id}?avecPhoto=1`)
-    photo.value = await res.json()
+    const res = await api(`/api/photos/${route.params.id}`)
+    if (!res.ok) return
+    photo.value       = await res.json()
     titre.value       = photo.value.titre
     description.value = photo.value.description
-    apercu.value      = photo.value.photo
+
+    elements.value = photo.value.images.map(img => ({
+        cle: `existante-${img.id}`, existanteId: img.id, url: null
+    }))
+    for (const el of elements.value) {
+        el.url = await urlPhoto(el.existanteId)
+    }
 })
 
-async function chargerFichier(e) {
-    const fichier = e.target.files[0]
-    if (!fichier) return
+onUnmounted(() => {
+    for (const el of elements.value) {
+        if (el.existanteId && el.url) URL.revokeObjectURL(el.url)
+    }
+})
+
+async function ajouterFichiers(e) {
+    const fichiers = Array.from(e.target.files || [])
+    if (!fichiers.length) return
     erreur.value = ''
+    chargementPhotos.value = true
     try {
-        const reduite = await redimensionner(fichier)
-        apercu.value  = reduite
-        nouvellephoto = reduite
+        for (const fichier of fichiers) {
+            if (elements.value.length >= LIMITE) {
+                erreur.value = `${LIMITE} photos au maximum par création`
+                break
+            }
+            const donnees = await redimensionner(fichier)
+            elements.value.push({ cle: `nouvelle-${compteur++}`, donnees, url: donnees })
+        }
     } catch (err) {
         erreur.value = err.message
+    } finally {
+        chargementPhotos.value = false
+        e.target.value = ''
     }
 }
 
+function retirer(i) {
+    const el = elements.value[i]
+    if (el.existanteId && el.url) URL.revokeObjectURL(el.url)
+    elements.value.splice(i, 1)
+}
+
+function promouvoir(i) {
+    const [el] = elements.value.splice(i, 1)
+    elements.value.unshift(el)
+}
+
 async function sauvegarder() {
+    erreur.value = ''
+    // « conserver:<id> » évite de renvoyer une image déjà stockée : seul
+    // son rang change.
+    const photos = elements.value.map(el =>
+        el.existanteId ? `conserver:${el.existanteId}` : el.donnees
+    )
     const res = await api(`/api/photos/${route.params.id}`, {
         method: 'PUT',
-        body:   JSON.stringify({
-            titre:       titre.value,
-            description: description.value,
-            photo:       nouvellephoto || photo.value.photo
-        })
+        body:   JSON.stringify({ titre: titre.value, description: description.value, photos })
     })
     if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        erreur.value = data.erreur || 'Modification refusée'
+        erreur.value = data.erreur || 'Erreur lors de l\'enregistrement'
         return
     }
     succes.value = true
@@ -100,52 +151,89 @@ async function sauvegarder() {
     flex-direction: column;
     align-items: center;
 }
-h1 {
-    margin-bottom: 32px;
-    color: #333;
-    font-size: 1.6rem;
-}
+h1 { margin-bottom: 32px; color: #333; font-size: 1.6rem; }
 .formulaire {
     background: white;
     padding: 32px;
     border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 500px;
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
-.champ {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-label {
-    font-weight: 600;
-    color: #444;
-    font-size: 0.95rem;
-}
-input[type="text"], textarea {
-    padding: 10px 14px;
+.champ { display: flex; flex-direction: column; gap: 6px; }
+label { font-weight: 600; color: #444; font-size: 0.9rem; }
+.optionnel { font-weight: 400; color: #999; font-size: 0.8rem; }
+input[type=text], textarea {
+    padding: 11px 14px;
     border: 2px solid #ddd;
     border-radius: 8px;
     font-size: 1rem;
+    font-family: inherit;
     outline: none;
     transition: border-color 0.2s;
-    font-family: Arial, sans-serif;
 }
-input[type="text"]:focus, textarea:focus { border-color: #3355cc; }
-.apercu {
-    max-width: 100%;
-    max-height: 220px;
+input[type=text]:focus, textarea:focus { border-color: #3355cc; }
+.fichier { margin-top: 10px; font-size: 0.9rem; }
+.apercus {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 10px;
+}
+.apercu-item {
+    position: relative;
+    aspect-ratio: 1;
     border-radius: 8px;
-    object-fit: contain;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    background: #f0f0f0;
 }
-button {
+.apercu-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.attente {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(100deg, #e8e8e8 30%, #f4f4f4 50%, #e8e8e8 70%);
+    background-size: 200% 100%;
+    animation: glisse 1.2s ease-in-out infinite;
+}
+@keyframes glisse {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) { .attente { animation: none; } }
+.badge-couverture {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.62);
+    color: white;
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 2px 0;
+}
+.retirer, .promouvoir {
+    position: absolute;
+    top: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.62);
+    color: white;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.retirer { right: 4px; }
+.retirer:hover { background: #e53e3e; }
+.promouvoir { left: 4px; font-size: 0.85rem; }
+.promouvoir:hover { background: #3355cc; }
+button[type=submit] {
     padding: 12px;
-    background-color: #3355cc;
+    background: #3355cc;
     color: white;
     border: none;
     border-radius: 8px;
@@ -154,15 +242,9 @@ button {
     cursor: pointer;
     transition: background 0.2s;
 }
-button:hover { background-color: #2244bb; }
-.succes {
-    text-align: center;
-    color: #38a169;
-    font-weight: 600;
-}
-.erreur {
-    text-align: center;
-    color: #e53e3e;
-    font-weight: 600;
-}
+button[type=submit]:hover:not(:disabled) { background: #2244bb; }
+button[type=submit]:disabled { background: #aaa; cursor: default; }
+.poids { font-size: 0.82rem; color: #777; }
+.succes { text-align: center; color: #38a169; font-weight: 600; }
+.erreur { text-align: center; color: #e53e3e; font-weight: 600; }
 </style>

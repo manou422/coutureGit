@@ -14,13 +14,26 @@
             </div>
 
             <div class="champ">
-                <label>Photo</label>
-                <input type="file" accept="image/*" @change="chargerFichier" required />
-                <img v-if="apercu" :src="apercu" class="apercu" alt="aperçu" />
-                <p v-if="poids" class="poids">Photo optimisée pour le web : {{ poids }}</p>
+                <label>Photos <span class="optionnel">(plusieurs possibles, 12 au maximum)</span></label>
+                <input type="file" accept="image/*" multiple @change="chargerFichiers" />
+
+                <p v-if="chargementPhotos" class="poids">Optimisation en cours...</p>
+
+                <div v-if="photos.length" class="apercus">
+                    <div v-for="(p, i) in photos" :key="i" class="apercu-item">
+                        <img :src="p" alt="" />
+                        <span v-if="i === 0" class="badge-couverture">Couverture</span>
+                        <button type="button" class="retirer" :aria-label="`Retirer la photo ${i + 1}`"
+                                @click="retirer(i)">×</button>
+                    </div>
+                </div>
+                <p v-if="photos.length" class="poids">
+                    {{ photos.length }} photo{{ photos.length > 1 ? 's' : '' }} — {{ poidsTotal }}.
+                    La première sert de couverture en galerie.
+                </p>
             </div>
 
-            <button type="submit" :disabled="!apercu">Ajouter</button>
+            <button type="submit" :disabled="!photos.length || chargementPhotos">Ajouter</button>
             <p v-if="erreur" class="erreur">{{ erreur }}</p>
             <p v-if="succes" class="succes">Création ajoutée avec succès !</p>
         </form>
@@ -28,39 +41,53 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ajouterPhoto } from '../stores/photos.js'
 import { redimensionner, poidsLisible } from '../utils/image.js'
 
+const LIMITE = 12
+
 const router      = useRouter()
 const titre       = ref('')
 const description = ref('')
-const apercu      = ref(null)
+const photos      = ref([])
 const succes      = ref(false)
 const erreur      = ref('')
-const poids       = ref('')
-let   fichierBase64 = null
+const chargementPhotos = ref(false)
 
-async function chargerFichier(e) {
-    const fichier = e.target.files[0]
-    if (!fichier) return
+const poidsTotal = computed(() => poidsLisible(photos.value.join('')))
+
+async function chargerFichiers(e) {
+    const fichiers = Array.from(e.target.files || [])
+    if (!fichiers.length) return
     erreur.value = ''
+    chargementPhotos.value = true
     try {
-        const reduite = await redimensionner(fichier)
-        apercu.value  = reduite
-        fichierBase64 = reduite
-        poids.value   = poidsLisible(reduite)
+        for (const fichier of fichiers) {
+            if (photos.value.length >= LIMITE) {
+                erreur.value = `${LIMITE} photos au maximum par création`
+                break
+            }
+            photos.value.push(await redimensionner(fichier))
+        }
     } catch (err) {
         erreur.value = err.message
+    } finally {
+        chargementPhotos.value = false
+        e.target.value = ''   // permet de resélectionner le même fichier
     }
+}
+
+function retirer(i) {
+    photos.value.splice(i, 1)
 }
 
 async function soumettre() {
     erreur.value = ''
     try {
         await ajouterPhoto({
-            photo:       fichierBase64,
+            photos:      photos.value,
             titre:       titre.value,
             description: description.value
         })
@@ -154,5 +181,53 @@ button:disabled { background-color: #aaa; cursor: default; }
     font-size: 0.82rem;
     color: #777;
     margin-top: 6px;
+    line-height: 1.4;
 }
+.optionnel {
+    font-weight: 400;
+    color: #999;
+    font-size: 0.8rem;
+}
+.apercus {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+.apercu-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f0f0f0;
+}
+.apercu-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.badge-couverture {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.62);
+    color: white;
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 2px 0;
+}
+.retirer {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.62);
+    color: white;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.retirer:hover { background: #e53e3e; }
 </style>
