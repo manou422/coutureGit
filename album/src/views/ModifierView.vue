@@ -15,6 +15,10 @@
                 <datalist id="categories-existantes">
                     <option v-for="c in categories" :key="c.nom" :value="c.nom" />
                 </datalist>
+                <p v-if="categorieMasquee" class="avertissement">
+                    Cette catégorie est masquée : la création ne sera visible que par vous,
+                    jusqu'à ce que vous rendiez la catégorie visible.
+                </p>
             </div>
 
             <div class="champ">
@@ -53,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, urlPhoto, categories, chargerCategories } from '../stores/auth.js'
 import { redimensionner } from '../utils/image.js'
@@ -70,6 +74,11 @@ const categorie   = ref('')
 const succes      = ref(false)
 const erreur      = ref('')
 const chargementPhotos = ref(false)
+
+// Ranger une création dans une catégorie masquée la masque aussi : mieux
+// vaut le dire au moment du choix qu'après coup.
+const categorieMasquee = computed(() =>
+    categories.value.some(c => c.nom === categorie.value.trim() && !c.visible))
 
 // Chaque élément est soit une photo déjà en base (on garde son id, sans
 // la retéléverser), soit une nouvelle image en attente d'envoi.
@@ -181,6 +190,15 @@ h1 { margin-bottom: 32px; color: #333; font-size: 1.6rem; }
 .champ { display: flex; flex-direction: column; gap: 6px; }
 label { font-weight: 600; color: #444; font-size: 0.9rem; }
 .optionnel { font-weight: 400; color: #999; font-size: 0.8rem; }
+.avertissement {
+    font-size: 0.82rem;
+    color: #6b3fa0;
+    background: #f7f1fe;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 6px;
+    line-height: 1.4;
+}
 input[type=text], textarea {
     padding: 11px 14px;
     border: 2px solid #ddd;

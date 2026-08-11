@@ -68,6 +68,20 @@ export async function chargerCategories() {
     }
 }
 
+// Masque une catégorie aux membres, ou la remontre. Réservé à
+// l'administratrice : le serveur refuse l'appel aux autres.
+export async function basculerVisibilite(id, visible) {
+    const res = await api(`/api/categories/${id}/visibilite`, {
+        method: 'PATCH',
+        body:   JSON.stringify({ visible })
+    })
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.erreur || 'Changement de visibilité impossible')
+    }
+    await chargerCategories()
+}
+
 export async function urlImage(id) {
     return chargerBlob(`/api/photos/${id}/image`)
 }

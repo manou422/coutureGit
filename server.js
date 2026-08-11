@@ -127,12 +127,26 @@ function soiMeme(req, res, next) {
     // Liste déclarée des catégories : elle permet d'en créer une avant
     // qu'aucune création ne s'en réclame. Le libellé reste porté par
     // `creations.categorie` — renommer met les deux à jour.
+    //
+    // `visible` = 0 masque la catégorie et tout ce qu'elle contient aux
+    // membres ; l'administratrice continue de la voir. Le drapeau se
+    // change à tout moment, sans toucher aux créations.
     await pool.query(`
         CREATE TABLE IF NOT EXISTS categories (
-            id  INT AUTO_INCREMENT PRIMARY KEY,
-            nom VARCHAR(100) NOT NULL UNIQUE
+            id      INT AUTO_INCREMENT PRIMARY KEY,
+            nom     VARCHAR(100) NOT NULL UNIQUE,
+            visible TINYINT(1) NOT NULL DEFAULT 1
         )
     `)
+    // Bases créées avant l'existence du drapeau : tout était visible.
+    const [colonneVisible] = await pool.query(`
+        SELECT COUNT(*) AS presente FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'categories' AND COLUMN_NAME = 'visible'
+    `)
+    if (!colonneVisible[0].presente) {
+        await pool.query('ALTER TABLE categories ADD COLUMN visible TINYINT(1) NOT NULL DEFAULT 1')
+        console.log('Colonne `visible` ajoutée à la table categories.')
+    }
     // Reprise des libellés déjà utilisés avant l'existence de la table.
     await pool.query(`
         INSERT IGNORE INTO categories (nom)
@@ -472,6 +486,27 @@ function nettoyerCategorie(valeur) {
     return propre.length ? propre : null
 }
 
+/* --- Catégories masquées ------------------------------------------- *
+ *
+ * Une création est visible si sa catégorie ne l'est pas moins. Trois cas
+ * la laissent visible de tous : pas de catégorie du tout, une catégorie
+ * marquée visible, ou un libellé libre absent de la table `categories`
+ * (rien n'a jamais été déclaré à son sujet).
+ *
+ * Le filtrage est fait en SQL, sur chaque route qui expose une création
+ * ou une image — y compris celles qu'on atteint par identifiant direct.
+ * Masquer une catégorie doit rendre son contenu introuvable, pas
+ * seulement absent des listes.
+ */
+const JOINTURE_VISIBILITE = 'LEFT JOIN categories cat ON cat.nom = c.categorie'
+const CONDITION_VISIBLE   = '(cat.id IS NULL OR cat.visible = 1)'
+
+// À coller derrière un WHERE déjà commencé. Vide pour l'administratrice,
+// qui voit tout.
+function filtreVisibilite(utilisateur) {
+    return utilisateur.type === 'admin' ? '' : ` AND ${CONDITION_VISIBLE}`
+}
+
 // Renvoie l'image décodée en binaire plutôt qu'en base64 : un tiers de
 // poids en moins, et le navigateur peut la mettre en cache.
 function envoyerImage(res, donnees) {
@@ -500,19 +535,23 @@ app.get('/api/photos', authentifier, async (req, res) => {
     // `?categorie=` filtre la galerie ; « sans » cible les créations
     // qui n'ont pas encore été classées.
     const filtre = req.query.categorie
-    let condition = '', params = []
+    const conditions = [], params = []
     if (filtre === 'sans') {
-        condition = 'WHERE c.categorie IS NULL OR c.categorie = ""'
+        conditions.push('(c.categorie IS NULL OR c.categorie = "")')
     } else if (filtre) {
-        condition = 'WHERE c.categorie = ?'
-        params = [filtre]
+        conditions.push('c.categorie = ?')
+        params.push(filtre)
     }
+    // Une catégorie masquée demandée explicitement — adresse devinée,
+    // page en favori — ne renvoie rien de plus que la galerie complète.
+    if (req.utilisateur.type !== 'admin') conditions.push(CONDITION_VISIBLE)
 
     const [rows] = await pool.query(`
         SELECT c.id, c.titre, c.description, c.categorie, COUNT(p.id) AS nbPhotos
         FROM creations c
         LEFT JOIN photos p ON p.creationId = c.id
-        ${condition}
+        ${JOINTURE_VISIBILITE}
+        ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
         GROUP BY c.id, c.titre, c.description, c.categorie
         ORDER BY c.id
     `, params)
@@ -520,21 +559,27 @@ app.get('/api/photos', authentifier, async (req, res) => {
 })
 
 // Catégories déclarées, avec le nombre de créations de chacune. Une
-// catégorie encore vide apparaît donc, avec un compte à zéro.
+// catégorie encore vide apparaît donc, avec un compte à zéro. Les
+// catégories masquées ne sortent que pour l'administratrice.
 app.get('/api/categories', authentifier, async (req, res) => {
     const [rows] = await pool.query(`
-        SELECT cat.id, cat.nom, COUNT(c.id) AS nombre
+        SELECT cat.id, cat.nom, cat.visible, COUNT(c.id) AS nombre
         FROM categories cat
         LEFT JOIN creations c ON c.categorie = cat.nom
-        GROUP BY cat.id, cat.nom
+        ${req.utilisateur.type === 'admin' ? '' : 'WHERE cat.visible = 1'}
+        GROUP BY cat.id, cat.nom, cat.visible
         ORDER BY cat.nom
     `)
+    // Les créations non classées restent visibles de tous : masquer se
+    // fait par catégorie, et « non classées » n'en est pas une.
     const [sans] = await pool.query(`
         SELECT COUNT(*) AS nombre FROM creations
         WHERE categorie IS NULL OR categorie = ''
     `)
     res.json({
-        categories: rows.map(r => ({ id: r.id, nom: r.nom, nombre: Number(r.nombre) })),
+        categories: rows.map(r => ({
+            id: r.id, nom: r.nom, nombre: Number(r.nombre), visible: !!r.visible
+        })),
         sansCategorie: Number(sans[0].nombre)
     })
 })
@@ -543,6 +588,9 @@ app.post('/api/categories', authentifier, adminSeulement, async (req, res) => {
     const nom = nettoyerCategorie(req.body.nom)
     if (!nom) return res.status(400).json({ erreur: 'Le nom est obligatoire' })
 
+    // Visible par défaut : on ne masque que si c'est demandé.
+    const visible = req.body.visible === false ? 0 : 1
+
     // On renvoie le libellé déjà en base, pas celui saisi : si la
     // différence n'est qu'une casse ou un espace, autant la montrer.
     const [existe] = await pool.query('SELECT nom FROM categories WHERE nom = ?', [nom])
@@ -550,8 +598,25 @@ app.post('/api/categories', authentifier, adminSeulement, async (req, res) => {
         return res.status(409).json({ erreur: `La catégorie « ${existe[0].nom} » existe déjà` })
     }
 
-    const [r] = await pool.query('INSERT INTO categories (nom) VALUES (?)', [nom])
-    res.json({ id: r.insertId, nom, nombre: 0 })
+    const [r] = await pool.query('INSERT INTO categories (nom, visible) VALUES (?, ?)', [nom, visible])
+    res.json({ id: r.insertId, nom, nombre: 0, visible: !!visible })
+})
+
+// Masquer ou remontrer une catégorie. Route à part du renommage : c'est
+// une bascule, elle ne doit pas obliger à renvoyer le nom.
+app.patch('/api/categories/:id/visibilite', authentifier, adminSeulement, async (req, res) => {
+    if (typeof req.body.visible !== 'boolean') {
+        return res.status(400).json({ erreur: 'Le champ `visible` doit valoir true ou false' })
+    }
+    // Existence vérifiée à part : MySQL ne compte pas comme « affectée »
+    // une ligne réécrite à l'identique, une bascule sans effet passerait
+    // donc pour une catégorie introuvable.
+    const [actuelle] = await pool.query('SELECT id FROM categories WHERE id = ?', [req.params.id])
+    if (!actuelle.length) return res.status(404).json({ erreur: 'Catégorie introuvable' })
+
+    await pool.query('UPDATE categories SET visible = ? WHERE id = ?',
+        [req.body.visible ? 1 : 0, req.params.id])
+    res.json({ success: true, visible: req.body.visible })
 })
 
 app.put('/api/categories/:id', authentifier, adminSeulement, async (req, res) => {
@@ -624,17 +689,25 @@ app.get('/api/statistiques', authentifier, adminSeulement, async (req, res) => {
 
 // Une image quelconque, par son identifiant propre.
 app.get('/api/images/:imageId', authentifier, async (req, res) => {
-    const [rows] = await pool.query('SELECT photo FROM photos WHERE id = ?', [req.params.imageId])
+    const [rows] = await pool.query(`
+        SELECT p.photo FROM photos p
+        JOIN creations c ON c.id = p.creationId
+        ${JOINTURE_VISIBILITE}
+        WHERE p.id = ?${filtreVisibilite(req.utilisateur)}
+    `, [req.params.imageId])
     if (!rows.length || !rows[0].photo) return res.status(404).end()
     envoyerImage(res, rows[0].photo.toString())
 })
 
 // Photo de couverture d'une création (la première dans l'ordre).
 app.get('/api/photos/:id/image', authentifier, async (req, res) => {
-    const [rows] = await pool.query(
-        'SELECT photo FROM photos WHERE creationId = ? ORDER BY ordre, id LIMIT 1',
-        [req.params.id]
-    )
+    const [rows] = await pool.query(`
+        SELECT p.photo FROM photos p
+        JOIN creations c ON c.id = p.creationId
+        ${JOINTURE_VISIBILITE}
+        WHERE p.creationId = ?${filtreVisibilite(req.utilisateur)}
+        ORDER BY p.ordre, p.id LIMIT 1
+    `, [req.params.id])
     if (!rows.length || !rows[0].photo) return res.status(404).end()
     envoyerImage(res, rows[0].photo.toString())
 })
@@ -643,7 +716,12 @@ app.get('/api/photos/:id/image', authentifier, async (req, res) => {
 // sous forme d'identifiants seulement — chacune est ensuite chargée
 // séparément par la page.
 app.get('/api/photos/:id', authentifier, async (req, res) => {
-    const [rows] = await pool.query('SELECT id, titre, description, categorie FROM creations WHERE id = ?', [req.params.id])
+    const [rows] = await pool.query(`
+        SELECT c.id, c.titre, c.description, c.categorie
+        FROM creations c
+        ${JOINTURE_VISIBILITE}
+        WHERE c.id = ?${filtreVisibilite(req.utilisateur)}
+    `, [req.params.id])
     if (!rows.length) return res.status(404).json({ erreur: 'Non trouvé' })
 
     const [images] = await pool.query(

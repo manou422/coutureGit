@@ -36,10 +36,23 @@
                     :key="c.nom"
                     :to="{ path: '/galerie', query: { categorie: c.nom } }"
                     class="categorie"
-                    :class="{ actif: categorieActive === c.nom }"
-                    :title="c.nom"
+                    :class="{ actif: categorieActive === c.nom, masquee: !c.visible }"
+                    :title="c.visible ? c.nom : `${c.nom} — masquée aux autres membres`"
                 >
-                    <span class="nom">{{ c.nom }}</span>
+                    <span class="nom">
+                        <!-- Œil barré : seule l'administratrice reçoit les
+                             catégories masquées, l'icône lui rappelle
+                             lesquelles ne sont pas publiques. -->
+                        <svg v-if="!c.visible" class="oeil" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                            <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                        {{ c.nom }}
+                    </span>
                     <span class="nombre">{{ c.nombre }}</span>
                 </RouterLink>
 
@@ -184,6 +197,14 @@ nav > a.router-link-active { background-color: rgba(255,255,255,0.25); font-weig
 .categorie:hover { background-color: rgba(255,255,255,0.15); color: white; }
 .categorie.actif { background-color: rgba(255,255,255,0.25); color: white; font-weight: 600; }
 .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.categorie.masquee .nom { opacity: 0.75; }
+.oeil {
+    width: 12px;
+    height: 12px;
+    vertical-align: -1px;
+    margin-right: 3px;
+    flex-shrink: 0;
+}
 /* Entrée d'en-tête : séparée des catégories elles-mêmes. */
 .categorie-toutes {
     font-size: 0.8rem;

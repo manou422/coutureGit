@@ -15,6 +15,10 @@
                 <datalist id="categories-existantes">
                     <option v-for="c in categories" :key="c.nom" :value="c.nom" />
                 </datalist>
+                <p v-if="categorieMasquee" class="avertissement">
+                    Cette catégorie est masquée : la création ne sera visible que par vous,
+                    jusqu'à ce que vous rendiez la catégorie visible.
+                </p>
                 <p class="poids">Choisissez une catégorie existante ou tapez-en une nouvelle.</p>
             </div>
 
@@ -69,6 +73,11 @@ const erreur      = ref('')
 const chargementPhotos = ref(false)
 
 const poidsTotal = computed(() => poidsLisible(photos.value.join('')))
+
+// Ranger une création dans une catégorie masquée la masque aussi : mieux
+// vaut le dire au moment du choix qu'après coup.
+const categorieMasquee = computed(() =>
+    categories.value.some(c => c.nom === categorie.value.trim() && !c.visible))
 
 onMounted(chargerCategories)
 
@@ -202,6 +211,15 @@ button:disabled { background-color: #aaa; cursor: default; }
     font-weight: 400;
     color: #999;
     font-size: 0.8rem;
+}
+.avertissement {
+    font-size: 0.82rem;
+    color: #6b3fa0;
+    background: #f7f1fe;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 6px;
+    line-height: 1.4;
 }
 .apercus {
     display: grid;
