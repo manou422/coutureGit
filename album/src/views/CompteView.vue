@@ -1,8 +1,16 @@
+<!-- ===================================================================
+      CompteView.vue — « Mon compte »
+     ===================================================================
+
+      La page a deux visages : la fiche en lecture, et le formulaire de
+      modification. `modeEdition` décide lequel est montré — c'est le rôle
+      des `v-if` / `v-else` ci-dessous. -->
 <template>
     <div class="compte-page">
         <div class="compte-card">
             <h1>Mon compte</h1>
 
+            <!-- Premier visage : la fiche, en lecture seule. -->
             <div v-if="!modeEdition" class="infos">
                 <div class="ligne">
                     <span class="label">Nom</span>
@@ -16,6 +24,8 @@
                     <span class="label">Email</span>
                     <span class="valeur">{{ utilisateur.mail }}</span>
                 </div>
+                <!-- Le type n'est montré qu'à l'administratrice : « PA » ne dirait rien
+                     aux membres. -->
                 <div v-if="utilisateur.type !== 'PA'" class="ligne">
                     <span class="label">Type</span>
                     <span class="valeur badge" :class="utilisateur.type">{{ utilisateur.type }}</span>
@@ -26,6 +36,7 @@
                 </div>
             </div>
 
+            <!-- Second visage : le formulaire, affiché à la place de la fiche. -->
             <form v-else @submit.prevent="sauvegarder" class="form-edition">
                 <div class="champ">
                     <label>Nom</label>
@@ -40,12 +51,12 @@
                     <input v-model="form.mail" type="email" required />
                 </div>
                 <div class="champ">
+                    <!-- Champ facultatif : laissé vide, le mot de passe ne change pas. -->
                     <label>Nouveau mot de passe <span class="optionnel">(laisser vide pour ne pas changer)</span></label>
                     <div class="input-oeil">
                         <input v-model="form.motDePasse" :type="voirMdp ? 'text' : 'password'" placeholder="••••••••" />
                         <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">
-                            <svg v-if="!voirMdp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            <IconeOeil :barre="voirMdp" />
                         </button>
                     </div>
                 </div>
@@ -72,25 +83,36 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import IconeOeil from '../components/IconeOeil.vue'
 import { api, connecter, deconnecter, rafraichir, utilisateur as utilisateurConnecte } from '../stores/auth.js'
 
 const router     = useRouter()
-const utilisateur = ref({})
+const utilisateur = ref({})  // la fiche affichée, relue au serveur
 const modeEdition = ref(false)
 const erreur      = ref('')
 const succes      = ref('')
 const chargement  = ref(false)
-const form        = ref({ nom: '', prenom: '', mail: '', motDePasse: '' })
+const form        = ref({ nom: '', prenom: '', mail: '', motDePasse: '' })  // la copie en cours de modification
 const voirMdp     = ref(false)
 
+// On relit le profil au serveur plutôt que de croire le navigateur :
+// il peut avoir changé depuis la dernière connexion.
 onMounted(async () => {
     const data = await rafraichir()
     if (!data) return router.push('/login')
     utilisateur.value = data
 })
 
+
+// Passe en modification en recopiant la fiche dans `form`. On travaille
+// sur une copie : « Annuler » se contente alors de la jeter.
 function ouvrirEdition() {
-    form.value = { nom: utilisateur.value.nom, prenom: utilisateur.value.prenom, mail: utilisateur.value.mail, motDePasse: '' }
+    form.value = {
+        nom:        utilisateur.value.nom,
+        prenom:     utilisateur.value.prenom,
+        mail:       utilisateur.value.mail,
+        motDePasse: ''
+    }
     erreur.value = ''
     succes.value = ''
     modeEdition.value = true
@@ -101,21 +123,35 @@ function annuler() {
     erreur.value = ''
 }
 
+
+// Enregistre. En cas de succès, la fiche ET le profil global (celui du
+// store, affiché ailleurs dans le site) sont mis à jour.
 async function sauvegarder() {
     erreur.value = ''
     succes.value = ''
     chargement.value = true
+
+    // Les quatre valeurs saisies, sorties une bonne fois du formulaire :
+    // elles servent ensuite à trois endroits.
+    const { nom, prenom, mail, motDePasse } = form.value
+
     try {
-        const res  = await api(`/api/utilisateurs/${utilisateur.value.id}`, {
+        const res = await api(`/api/utilisateurs/${utilisateur.value.id}`, {
             method: 'PUT',
-            body:   JSON.stringify({ nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail, motDePasse: form.value.motDePasse || undefined })
+            // Mot de passe vide = on n'y touche pas. `undefined` disparaît
+            // du JSON envoyé, alors qu'une chaîne vide serait transmise.
+            body: JSON.stringify({ nom, prenom, mail, motDePasse: motDePasse || undefined })
         })
         const data = await res.json()
+
         if (!res.ok) {
             erreur.value = data.erreur || 'Erreur lors de la modification'
         } else {
-            utilisateur.value = { ...utilisateur.value, nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail }
-            connecter({ ...utilisateurConnecte.value, nom: form.value.nom, prenom: form.value.prenom, mail: form.value.mail })
+            // La fiche affichée ici...
+            utilisateur.value = { ...utilisateur.value, nom, prenom, mail }
+            // ...et le profil partagé, que le reste du site affiche.
+            connecter({ ...utilisateurConnecte.value, nom, prenom, mail })
+
             succes.value = 'Modifications enregistrées'
             setTimeout(() => { modeEdition.value = false; succes.value = '' }, 1200)
         }
@@ -126,6 +162,8 @@ async function sauvegarder() {
     }
 }
 
+
+// Supprime le compte après confirmation, puis renvoie à la connexion.
 async function supprimerCompte() {
     if (!confirm('Supprimer définitivement votre compte ?')) return
     await api(`/api/utilisateurs/${utilisateur.value.id}`, { method: 'DELETE' })
@@ -135,6 +173,11 @@ async function supprimerCompte() {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+   */
 .compte-page {
     min-height: 100vh;
     display: flex;

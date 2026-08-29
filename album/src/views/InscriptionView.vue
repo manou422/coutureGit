@@ -1,3 +1,10 @@
+<!-- ===================================================================
+      InscriptionView.vue — création d'un compte membre
+     ===================================================================
+
+      Le champ « code d'invitation » n'apparaît que si le serveur en
+      réclame un (réglage INVITATION_CODE). Le nouveau compte est de type
+      « PA » : membre invité, sans droit de modification. -->
 <template>
     <div class="inscription-page">
         <div class="inscription-card">
@@ -24,11 +31,11 @@
                     <div class="input-oeil">
                         <input v-model="motDePasse" :type="voirMdp ? 'text' : 'password'" placeholder="••••••••" required />
                         <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">
-                            <svg v-if="!voirMdp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            <IconeOeil :barre="voirMdp" />
                         </button>
                     </div>
                 </div>
+                <!-- Champ affiché seulement si le serveur exige un code. -->
                 <div v-if="codeRequis" class="champ">
                     <label>Code d'invitation</label>
                     <input v-model="codeInvitation" type="text" placeholder="Code reçu avec le lien" required />
@@ -48,6 +55,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import IconeOeil from '../components/IconeOeil.vue'
 
 const router     = useRouter()
 const nom        = ref('')
@@ -62,6 +70,8 @@ const voirMdp    = ref(false)
 const codeInvitation = ref('')
 const codeRequis     = ref(false)
 
+// À l'ouverture, on demande au serveur si un code est exigé, pour
+// afficher ou non le champ.
 onMounted(async () => {
     try {
         const res = await fetch('/api/inscription/config')
@@ -72,6 +82,9 @@ onMounted(async () => {
     }
 })
 
+
+// Vérifie la concordance des deux adresses, envoie l'inscription, puis
+// renvoie vers la connexion.
 async function sInscrire() {
     erreur.value = ''
     succes.value = ''
@@ -80,11 +93,22 @@ async function sInscrire() {
         return
     }
     chargement.value = true
+
+    // Chaque champ du formulaire est une `ref` : on lit sa `.value` une
+    // fois ici, plutôt que cinq fois dans le corps de la requête.
+    const inscription = {
+        nom:            nom.value,
+        prenom:         prenom.value,
+        mail:           mail.value,
+        motDePasse:     motDePasse.value,
+        codeInvitation: codeInvitation.value
+    }
+
     try {
-        const res  = await fetch('/api/inscription', {
+        const res = await fetch('/api/inscription', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ nom: nom.value, prenom: prenom.value, mail: mail.value, motDePasse: motDePasse.value, codeInvitation: codeInvitation.value })
+            body:    JSON.stringify(inscription)
         })
         const data = await res.json()
         if (!res.ok) {
@@ -102,6 +126,11 @@ async function sInscrire() {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+   */
 .inscription-page {
     min-height: 100vh;
     display: flex;

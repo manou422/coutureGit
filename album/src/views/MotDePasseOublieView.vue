@@ -1,3 +1,10 @@
+<!-- ===================================================================
+      MotDePasseOublieView.vue — demande de réinitialisation
+     ===================================================================
+
+      On saisit son adresse, le serveur envoie un lien valable une heure.
+      Si aucun envoi d'emails n'est configuré, la page le dit au lieu de
+      proposer un formulaire qui ne marcherait pas. -->
 <template>
     <div class="page">
         <div class="carte">
@@ -21,6 +28,8 @@
                     </div>
 
                     <p v-if="erreur" class="erreur">{{ erreur }}</p>
+                    <!-- Le message reste volontairement vague (« si un compte existe ») :
+                         confirmer une adresse reviendrait à révéler qui est inscrit. -->
                     <p v-if="envoye" class="succes">
                         Si un compte existe avec cette adresse, un email vient d'être envoyé.
                         Pensez à regarder vos courriers indésirables.
@@ -45,7 +54,7 @@ const erreur       = ref('')
 const envoye       = ref(false)
 const chargement   = ref(false)
 const disponible   = ref(true)
-const configChargee = ref(false)
+const configChargee = ref(false)  // évite d'afficher le message d'indisponibilité avant la réponse
 
 onMounted(async () => {
     try {
@@ -58,6 +67,8 @@ onMounted(async () => {
     }
 })
 
+
+// Envoie la demande. Le bouton reste ensuite désactivé, la demande étant faite.
 async function envoyer() {
     erreur.value = ''
     chargement.value = true
@@ -79,6 +90,11 @@ async function envoyer() {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+   */
 .page {
     min-height: 100vh;
     display: flex;

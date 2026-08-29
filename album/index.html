@@ -1,12 +1,18 @@
 <!DOCTYPE html>
+<!-- L'unique page HTML du site. Elle est presque vide : tout ce qui
+     s'affiche ensuite est fabriqué par Vue, à partir des fichiers .vue. -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <!-- Sans cette ligne, un téléphone afficherait la page comme un écran d'ordinateur, en minuscule. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Album</title>
 </head>
 <body>
+    <!-- Le point d'accroche : Vue remplace le contenu de cette balise par
+         l'application (voir le .mount('#app') à la fin de main.js). -->
     <div id="app"></div>
+    <!-- Le point de départ de tout le code du site : main.js. -->
     <script type="module" src="/src/main.js"></script>
 </body>
 </html>

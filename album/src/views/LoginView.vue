@@ -1,3 +1,9 @@
+<!-- ===================================================================
+      LoginView.vue — la page de connexion
+     ===================================================================
+
+      Premier écran pour qui n'est pas connecté : le routeur y renvoie
+      toute personne demandant une page protégée. -->
 <template>
     <div class="login-page">
         <div class="login-card">
@@ -11,9 +17,11 @@
                     <label>Mot de passe</label>
                     <div class="input-oeil">
                         <input v-model="motDePasse" :type="voirMdp ? 'text' : 'password'" placeholder="••••••••" required />
+                        <!-- L'œil affiche ou masque le mot de passe, en basculant simplement
+                             le type du champ entre `password` et `text`. Le dessin lui-même
+                             est dans components/IconeOeil.vue. -->
                         <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">
-                            <svg v-if="!voirMdp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            <IconeOeil :barre="voirMdp" />
                         </button>
                     </div>
                 </div>
@@ -31,15 +39,23 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import IconeOeil from '../components/IconeOeil.vue'
 import { connecter, invaliderSynchro } from '../stores/auth.js'
 
 const router     = useRouter()
 const email      = ref('')
 const motDePasse = ref('')
 const erreur     = ref('')
-const chargement = ref(false)
+const chargement = ref(false)  // vrai pendant l'appel : le bouton se désactive
 const voirMdp    = ref(false)
 
+
+// Envoie les identifiants. Cet appel utilise `fetch` directement, et
+// non `api()` : il n'y a pas encore de jeton à joindre.
+//
+// En cas de succès : `connecter` range le profil et le jeton,
+// `invaliderSynchro` force la prochaine page à relire le profil auprès
+// du serveur, puis on va à l'accueil.
 async function seConnecter() {
     erreur.value     = ''
     chargement.value = true
@@ -66,6 +82,14 @@ async function seConnecter() {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+
+   La carte blanche est centrée par un `flex` occupant toute la hauteur
+   de la fenêtre : c'est la mise en page des quatre écrans de connexion.
+   */
 .login-page {
     min-height: 100vh;
     display: flex;

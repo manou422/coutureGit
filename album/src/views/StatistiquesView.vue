@@ -1,7 +1,19 @@
+<!-- ===================================================================
+      StatistiquesView.vue — la page « Fréquentation »
+     ===================================================================
+
+      Réservée à l'administratrice. Elle montre qui vient, et quand :
+      trois chiffres en haut, puis les visites jour par jour, puis un
+      récapitulatif par membre.
+
+      Le comptage est fait à la journée : quelqu'un qui se connecte dix
+      fois dans la même journée compte pour une visite. C'est bien
+      « combien de personnes sont venues », pas « combien de connexions ». -->
 <template>
     <div class="page">
         <h1>Fréquentation</h1>
 
+        <!-- Les trois tuiles de résumé, affichées une fois les chiffres reçus. -->
         <div v-if="stats" class="resume">
             <div class="tuile">
                 <span class="chiffre">{{ stats.nombreMembres }}</span>
@@ -26,6 +38,7 @@
                     <tr><th>Date</th><th class="nb">Personnes</th><th>Qui</th></tr>
                 </thead>
                 <tbody>
+                    <!-- Une ligne par jour ayant eu au moins une visite, du plus récent au plus ancien. -->
                     <tr v-for="j in stats.parJour" :key="j.jour">
                         <td class="date">{{ formaterDate(j.jour) }}</td>
                         <td class="nb"><span class="pastille">{{ j.personnes }}</span></td>
@@ -45,6 +58,7 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- Une ligne par membre inscrit, même ceux qui ne sont jamais venus. -->
                     <tr v-for="m in stats.membres" :key="m.id">
                         <td>
                             {{ m.prenom }} {{ m.nom }}
@@ -75,10 +89,15 @@ import { api } from '../stores/auth.js'
 const stats  = ref(null)
 const erreur = ref('')
 
+// Combien de membres se sont déjà connectés au moins une fois — à
+// distinguer du nombre d'inscrits, qui compte aussi ceux qui ne sont
+// jamais venus.
 const visiteursDistincts = computed(() =>
     stats.value ? stats.value.membres.filter(m => m.joursDeVisite > 0).length : 0
 )
 
+// Un seul appel suffit : le serveur renvoie les trois blocs ensemble.
+// Un refus signifie que le compte n'est pas administrateur.
 onMounted(async () => {
     try {
         const res = await api('/api/statistiques')
@@ -101,6 +120,11 @@ function formaterDate(iso) {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+   */
 .page {
     padding: 70px 20px 40px;
     min-height: 100vh;

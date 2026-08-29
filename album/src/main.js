@@ -1,3 +1,17 @@
+// ===================================================================
+//  main.js — le démarrage du site (« le front »)
+// ===================================================================
+//
+//  Ce fichier fait trois choses :
+//    1. il déclare le plan du site : quelle adresse affiche quel écran ;
+//    2. il pose les règles d'accès (page réservée aux connectés, ou à
+//       l'administratrice) ;
+//    3. il démarre l'application Vue.
+//
+//  Chaque écran est un fichier de views/ ; chaque fichier .vue contient
+//  son affichage (template), son code (script) et son style.
+//
+//  Vue d'ensemble du projet : voir README.md à la racine.
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
@@ -15,6 +29,19 @@ import CompteView from './views/CompteView.vue'
 import MotDePasseOublieView from './views/MotDePasseOublieView.vue'
 import ReinitialiserView from './views/ReinitialiserView.vue'
 
+
+// Le routeur : la table de correspondance entre adresses et écrans.
+//
+// `createWebHistory` donne de vraies adresses (/galerie et non /#/galerie).
+// C'est ce qui oblige le serveur à renvoyer index.html sur toute adresse
+// inconnue — voir la dernière route de server.js.
+//
+// `meta` est un fourre-tout libre attaché à la route ; il est relu juste
+// en dessous, dans beforeEach :
+//   requiresAuth : il faut être connecté
+//   adminOnly    : réservé à l'administratrice
+// Les quatre premières routes en sont dépourvues : ce sont les seules
+// pages accessibles sans compte.
 const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -33,15 +60,27 @@ const router = createRouter({
     ]
 })
 
+
+// « Garde de navigation » : cette fonction est appelée avant CHAQUE
+// changement de page. Elle peut laisser passer (ne rien renvoyer) ou
+// détourner vers une autre adresse (renvoyer un chemin).
+//
+// C'est un confort d'affichage, pas une sécurité : c'est le serveur qui
+// refuse pour de bon (`authentifier` / `adminSeulement`). Ici, on évite
+// simplement d'afficher une page vide à qui n'y a pas droit.
 router.beforeEach(async (to) => {
-    if (!to.meta.requiresAuth) return
+    if (!to.meta.requiresAuth) return  // page publique : rien à vérifier
 
     // Resynchronise le profil (donc le rôle) depuis le serveur au premier
     // chargement : le localStorage seul peut être périmé.
     const utilisateur = await assurerSynchro()
     if (!utilisateur) return '/login'
 
+    // Connecté mais pas administratrice : on renvoie à l'accueil.
     if (to.meta.adminOnly && utilisateur.type !== 'admin') return '/'
 })
 
+
+// Crée l'application à partir de App.vue, lui branche le routeur, et
+// l'installe dans le <div id="app"> de index.html.
 createApp(App).use(router).mount('#app')

@@ -1,10 +1,22 @@
+<!-- ===================================================================
+      AjouterView.vue — le formulaire d'ajout d'une création
+     ===================================================================
+
+      Réservé à l'administratrice (le routeur et le serveur le vérifient
+      tous les deux). Les photos choisies sont réduites par le navigateur
+      avant d'être envoyées, et prévisualisées en attendant. -->
 <template>
     <div class="ajouter">
         <h1>Ajouter une création</h1>
 
+        <!-- `@submit.prevent` : au moment de valider, exécute `soumettre` et
+             `prevent` annule le comportement normal du navigateur, qui serait de
+             recharger la page. -->
         <form @submit.prevent="soumettre" class="formulaire">
             <div class="champ">
                 <label>Titre</label>
+                <!-- `v-model` relie le champ à la variable : ce que la personne tape est
+                     aussitôt dans `titre`, et l'inverse est vrai aussi. -->
                 <input v-model="titre" type="text" placeholder="Nom de la création" required />
             </div>
 
@@ -12,6 +24,8 @@
                 <label>Catégorie <span class="optionnel">(facultatif)</span></label>
                 <input v-model="categorie" type="text" list="categories-existantes"
                        placeholder="Pochons, Trousses, Sacs..." maxlength="100" />
+                <!-- Une `datalist` propose les catégories déjà créées en suggestion, tout
+                     en laissant la possibilité d'en taper une nouvelle. -->
                 <datalist id="categories-existantes">
                     <option v-for="c in categories" :key="c.nom" :value="c.nom" />
                 </datalist>
@@ -29,6 +43,7 @@
 
             <div class="champ">
                 <label>Photos <span class="optionnel">(plusieurs possibles, 12 au maximum)</span></label>
+                <!-- `multiple` autorise plusieurs fichiers d'un coup ; `accept` filtre sur les images. -->
                 <input type="file" accept="image/*" multiple @change="chargerFichiers" />
 
                 <p v-if="chargementPhotos" class="poids">Optimisation en cours...</p>
@@ -36,6 +51,7 @@
                 <div v-if="photos.length" class="apercus">
                     <div v-for="(p, i) in photos" :key="i" class="apercu-item">
                         <img :src="p" alt="" />
+                        <!-- La première photo de la liste sert de couverture en galerie. -->
                         <span v-if="i === 0" class="badge-couverture">Couverture</span>
                         <button type="button" class="retirer" :aria-label="`Retirer la photo ${i + 1}`"
                                 @click="retirer(i)">×</button>
@@ -47,6 +63,7 @@
                 </p>
             </div>
 
+            <!-- Bouton inactif tant qu'il manque une photo ou qu'une optimisation est en cours. -->
             <button type="submit" :disabled="!photos.length || chargementPhotos">Ajouter</button>
             <p v-if="erreur" class="erreur">{{ erreur }}</p>
             <p v-if="succes" class="succes">Création ajoutée avec succès !</p>
@@ -67,11 +84,15 @@ const router      = useRouter()
 const titre       = ref('')
 const description = ref('')
 const categorie   = ref('')
+// L'état du formulaire. Chaque `ref` est une case mémoire surveillée :
+// modifier sa `.value` redessine la partie de l'écran qui l'utilise.
+// `photos` contient les images déjà réduites, prêtes à partir.
 const photos      = ref([])
 const succes      = ref(false)
 const erreur      = ref('')
 const chargementPhotos = ref(false)
 
+// Poids cumulé des photos, affiché sous la liste des aperçus.
 const poidsTotal = computed(() => poidsLisible(photos.value.join('')))
 
 // Ranger une création dans une catégorie masquée la masque aussi : mieux
@@ -81,6 +102,9 @@ const categorieMasquee = computed(() =>
 
 onMounted(chargerCategories)
 
+
+// Appelée quand des fichiers sont choisis. Chaque photo est réduite
+// l'une après l'autre (`await`), sans dépasser la limite de 12.
 async function chargerFichiers(e) {
     const fichiers = Array.from(e.target.files || [])
     if (!fichiers.length) return
@@ -98,6 +122,8 @@ async function chargerFichiers(e) {
         erreur.value = err.message
     } finally {
         chargementPhotos.value = false
+        // On vide le champ fichier : sans cela, rechoisir exactement le même
+        // fichier ne déclencherait aucun événement, le champ n'ayant pas changé.
         e.target.value = ''   // permet de resélectionner le même fichier
     }
 }
@@ -106,6 +132,9 @@ function retirer(i) {
     photos.value.splice(i, 1)
 }
 
+
+// Envoie la création au serveur, puis, après un court message de
+// confirmation, ramène à la galerie.
 async function soumettre() {
     erreur.value = ''
     try {
@@ -125,6 +154,14 @@ async function soumettre() {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+
+   Le `padding-top` de 90 px dégage la place du bouton retour, fixé en
+   haut de la fenêtre.
+   */
 .ajouter {
     padding: 90px 20px 40px;
     min-height: 100vh;

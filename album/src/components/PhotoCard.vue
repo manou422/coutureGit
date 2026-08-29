@@ -1,8 +1,20 @@
+<!-- ===================================================================
+      PhotoCard.vue — une vignette de la galerie
+     ===================================================================
+
+      Ce composant est répété une fois par création par GalerieView. Il
+      reçoit la création à afficher dans sa propriété `photo` et va
+      chercher lui-même son image : la galerie n'attend donc pas que
+      toutes les photos soient arrivées pour se dessiner. -->
 <template>
+    <!-- Toute la carte est un lien vers le détail de la création. -->
     <RouterLink :to="`/description/${photo.id}`" class="carte">
         <div class="img-wrapper">
+            <!-- Tant que l'image n'est pas chargée, on affiche à la place un
+                 rectangle gris animé : la grille garde sa forme au lieu de sursauter. -->
             <img v-if="src" :src="src" :alt="photo.titre" />
             <div v-else class="attente" aria-label="Chargement de la photo"></div>
+            <!-- Pastille « 3 photos », uniquement quand il y en a plusieurs. -->
             <span v-if="photo.nbPhotos > 1" class="compteur">
                 {{ photo.nbPhotos }} photos
             </span>
@@ -11,6 +23,11 @@
             <h3>{{ photo.titre }}</h3>
             <p class="en-savoir-plus">Pour en savoir plus cliquer ici</p>
         </div>
+        <!-- Modifier et Supprimer, réservés à l'administratrice.
+
+             `@click.prevent.stop` : `prevent` annule le comportement par défaut
+             (suivre le lien de la carte) et `stop` empêche le clic de remonter
+             jusqu'à elle. Sans cela, supprimer ouvrirait aussi la création. -->
         <div v-if="estAdmin" class="actions">
             <RouterLink :to="`/modifier/${photo.id}`" class="btn-modifier" title="Modifier" @click.stop>
                 ✏️
@@ -27,12 +44,20 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { supprimerPhoto } from '../stores/photos.js'
 import { estAdmin, urlImage } from '../stores/auth.js'
 
+// `defineProps` déclare ce que le composant reçoit de son parent — ici
+// une création : { id, titre, description, categorie, nbPhotos }.
 const props = defineProps({ photo: Object })
 
-const src = ref(null)
+const src = ref(null)  // adresse locale de l'image, null tant qu'elle charge
+// À l'affichage, on demande l'image ; elle arrivera un peu après.
 onMounted(async () => { src.value = await urlImage(props.photo.id) })
+// En quittant la page, on libère l'adresse locale : sans cela, l'image
+// resterait en mémoire pour rien.
 onUnmounted(() => { if (src.value) URL.revokeObjectURL(src.value) })
 
+
+// Demande confirmation, puis supprime. Le store retire la création de
+// la liste, ce qui fait disparaître la carte immédiatement.
 async function supprimer() {
     if (!confirm(`Supprimer "${props.photo.titre}" ?`)) return
     try {
@@ -44,6 +69,9 @@ async function supprimer() {
 </script>
 
 <style scoped>
+/* La carte : fond blanc, coins arrondis, et une légère ombre qui
+   s'accentue au survol pendant que la carte se soulève (`transform`).
+   */
 .carte {
     background: white;
     border-radius: 10px;
@@ -72,6 +100,10 @@ async function supprimer() {
     border-radius: 20px;
     letter-spacing: 0.02em;
 }
+/* Hauteur fixe pour que toutes les cartes soient alignées, quelle que
+   soit la forme des photos. `object-fit: contain` montre l'image
+   entière, sans la rogner.
+   */
 .img-wrapper {
     position: relative;
     width: 100%;
