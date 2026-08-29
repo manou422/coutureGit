@@ -1,3 +1,14 @@
+<!-- ===================================================================
+      ModifierView.vue — modifier une création existante
+     ===================================================================
+
+      Très proche de AjouterView, avec une difficulté en plus : les photos
+      déjà en base. On veut pouvoir en retirer, en ajouter et changer leur
+      ordre, sans retélécharger ni renvoyer celles qui n'ont pas bougé.
+
+      D'où la liste `elements`, où cohabitent deux sortes de photos :
+        - celles déjà en base : on ne garde que leur identifiant ;
+        - les nouvelles : on garde l'image complète, à envoyer. -->
 <template>
     <div class="modifier">
         <h1>Modifier la création</h1>
@@ -36,6 +47,7 @@
                         <span v-if="i === 0" class="badge-couverture">Couverture</span>
                         <button type="button" class="retirer" :aria-label="`Retirer la photo ${i + 1}`"
                                 @click="retirer(i)">×</button>
+                        <!-- La flèche ↑ fait passer une photo en première position, donc en couverture. -->
                         <button v-if="i > 0" type="button" class="promouvoir"
                                 aria-label="Mettre en couverture" title="Mettre en couverture"
                                 @click="promouvoir(i)">↑</button>
@@ -64,6 +76,11 @@ import { redimensionner } from '../utils/image.js'
 
 const LIMITE = 12
 
+// Le serveur reconnaît ce préfixe : « conserver:42 » désigne la photo 42
+// déjà en base, qu'il n'y a donc pas à renvoyer — seul son rang change.
+// Voir « Le protocole conserver: » dans server.js.
+const PREFIXE_CONSERVER = 'conserver:'
+
 const route  = useRoute()
 const router = useRouter()
 
@@ -80,11 +97,18 @@ const chargementPhotos = ref(false)
 const categorieMasquee = computed(() =>
     categories.value.some(c => c.nom === categorie.value.trim() && !c.visible))
 
-// Chaque élément est soit une photo déjà en base (on garde son id, sans
-// la retéléverser), soit une nouvelle image en attente d'envoi.
+// La liste affichée, dans son ordre actuel. Chaque élément est soit une
+// photo déjà en base (on garde son id, sans la retéléverser), soit une
+// nouvelle image en attente d'envoi.
+//
+// Chaque élément porte une `cle` stable — indispensable au `v-for` pour
+// suivre les photos quand on les réordonne, sinon Vue confondrait les
+// aperçus.
 const elements = ref([])
-let compteur = 0
+let compteur = 0  // sert à fabriquer une clé unique par nouvelle photo
 
+// À l'ouverture : on charge la création, on remplit les champs, puis on
+// récupère ses photos une à une pour les afficher en aperçu.
 onMounted(async () => {
     chargerCategories()
     const res = await api(`/api/photos/${route.params.id}`)
@@ -136,18 +160,25 @@ function retirer(i) {
     elements.value.splice(i, 1)
 }
 
+
+// `splice` retire la photo de sa place, `unshift` la remet en tête.
 function promouvoir(i) {
     const [el] = elements.value.splice(i, 1)
     elements.value.unshift(el)
 }
 
+
+// Envoie le tout. La liste transmise décrit l'ordre voulu ; le serveur
+// s'aligne dessus (voir la route PUT /api/photos/:id).
 async function sauvegarder() {
     erreur.value = ''
-    // « conserver:<id> » évite de renvoyer une image déjà stockée : seul
-    // son rang change.
-    const photos = elements.value.map(el =>
-        el.existanteId ? `conserver:${el.existanteId}` : el.donnees
-    )
+
+    // La liste envoyée décrit l'ordre voulu. Une photo déjà en base y
+    // figure sous la forme « conserver:<id> », une nouvelle sous celle de
+    // son image complète.
+    const photos = elements.value.map(element => element.existanteId
+        ? `${PREFIXE_CONSERVER}${element.existanteId}`
+        : element.donnees)
     const res = await api(`/api/photos/${route.params.id}`, {
         method: 'PUT',
         body:   JSON.stringify({
@@ -166,6 +197,11 @@ async function sauvegarder() {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+   */
 .modifier {
     padding: 90px 20px 40px;
     min-height: 100vh;

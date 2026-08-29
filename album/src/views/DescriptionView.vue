@@ -1,5 +1,15 @@
+<!-- ===================================================================
+      DescriptionView.vue — le détail d'une création
+     ===================================================================
+
+      Affiche une création en grand, avec ses vignettes dessous quand elle
+      compte plusieurs photos. On y arrive en cliquant une carte de la
+      galerie ; l'adresse contient l'identifiant : /description/12. -->
 <template>
     <div class="description-page">
+        <!-- Un `template` ne produit aucune balise : il sert seulement à
+             regrouper plusieurs éléments sous une même condition. Tant que la
+             création n'est pas arrivée, on affiche « Chargement... ». -->
         <template v-if="photo">
             <div class="visuel">
                 <img v-if="srcActive" :src="srcActive" :alt="photo.titre" />
@@ -8,6 +18,8 @@
 
             <!-- Les vignettes n'apparaissent que s'il y a de quoi choisir -->
             <div v-if="photo.images.length > 1" class="vignettes">
+                <!-- Cliquer une vignette change simplement le numéro de la photo active ;
+                     l'image du haut suit toute seule, puisqu'elle en est déduite. -->
                 <button
                     v-for="(img, i) in photo.images"
                     :key="img.id"
@@ -36,28 +48,41 @@ import { api, urlPhoto } from '../stores/auth.js'
 
 const route      = useRoute()
 const photo      = ref(null)
+// Les images déjà téléchargées, rangées par identifiant de photo.
+// Elles arrivent une par une, sans ordre garanti.
 const sources    = ref({})   // id de photo -> URL locale
 const indexActif = ref(0)
 
+// L'image affichée en grand : celle du rang actif, si elle est arrivée.
 const srcActive = computed(() => {
     const img = photo.value?.images?.[indexActif.value]
     return img ? sources.value[img.id] : null
 })
+
+// À l'ouverture : on demande la création (titre, description et la
+// liste des identifiants de ses photos), puis les images elles-mêmes.
+// Range l'adresse locale d'une image sous son identifiant. On remplace
+// l'objet entier au lieu d'y ajouter une clé : Vue est ainsi certain de
+// voir le changement et de redessiner.
+async function rangerImage(image) {
+    sources.value = { ...sources.value, [image.id]: await urlPhoto(image.id) }
+}
+
 
 onMounted(async () => {
     const res = await api(`/api/photos/${route.params.id}`)
     if (!res.ok) return
     photo.value = await res.json()
 
-    // La première d'abord, pour que la page soit lisible tout de suite ;
-    // les suivantes ensuite, sans bloquer l'affichage.
-    const [premiere, ...suivantes] = photo.value.images
-    if (premiere) sources.value = { ...sources.value, [premiere.id]: await urlPhoto(premiere.id) }
-    for (const img of suivantes) {
-        sources.value = { ...sources.value, [img.id]: await urlPhoto(img.id) }
+    // Les images sont demandées l'une après l'autre, dans l'ordre : la
+    // première arrive donc tout de suite et la page devient lisible,
+    // pendant que les suivantes continuent d'arriver.
+    for (const image of photo.value.images) {
+        await rangerImage(image)
     }
 })
 
+// En quittant la page, on libère toutes les adresses locales créées.
 onUnmounted(() => {
     for (const url of Object.values(sources.value)) {
         if (url) URL.revokeObjectURL(url)
@@ -83,6 +108,7 @@ onUnmounted(() => {
     justify-content: center;
     max-width: 100%;
 }
+/* `max-height: 60vh` empêche une photo verticale d'occuper tout l'écran. */
 .visuel img {
     max-width: 420px;
     max-height: 60vh;
@@ -120,6 +146,7 @@ onUnmounted(() => {
     transition: border-color 0.2s, transform 0.2s;
 }
 .vignette:hover { transform: translateY(-2px); }
+/* Un cadre bleu marque la vignette en cours. */
 .vignette.active { border-color: #3355cc; }
 .vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .attente-vignette {
@@ -134,6 +161,9 @@ onUnmounted(() => {
     from { background-position: 200% 0; }
     to   { background-position: -200% 0; }
 }
+/* Respecte le réglage système « réduire les animations » : les
+   rectangles d'attente cessent alors de clignoter.
+   */
 @media (prefers-reduced-motion: reduce) {
     .attente, .attente-vignette { animation: none; }
     .vignette:hover { transform: none; }

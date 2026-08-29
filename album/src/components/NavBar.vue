@@ -1,5 +1,15 @@
+<!-- ===================================================================
+      NavBar.vue — le menu bleu, à gauche de toutes les pages
+     ===================================================================
+
+      Il contient les liens principaux, la liste dépliable des catégories,
+      et le bouton de déconnexion. Trois liens ne sont montrés que si la
+      personne connectée est l'administratrice. -->
 <template>
     <nav>
+        <!-- `RouterLink` remplace `<a href>` : il change la page sans la
+             recharger, et se marque tout seul comme actif quand on s'y trouve
+             (classe router-link-active, stylée plus bas). -->
         <RouterLink to="/">Accueil</RouterLink>
 
         <div class="groupe-galerie">
@@ -26,11 +36,16 @@
                 </button>
             </RouterLink>
 
+            <!-- La liste des catégories, affichée seulement quand le menu est déplié. -->
             <div v-if="ouvert" class="sous-menu">
                 <RouterLink to="/categories" class="categorie categorie-toutes">
                     <span class="nom">Toutes les catégories</span>
                 </RouterLink>
 
+                <!-- `v-for` répète cet élément pour chaque catégorie. `:key` donne à Vue
+                     un repère stable pour suivre chaque ligne quand la liste change.
+                     Le `:to` construit le lien /galerie?categorie=... , qui est lu par
+                     GalerieView pour filtrer les créations affichées. -->
                 <RouterLink
                     v-for="c in categories"
                     :key="c.nom"
@@ -56,6 +71,7 @@
                     <span class="nombre">{{ c.nombre }}</span>
                 </RouterLink>
 
+                <!-- Entrée « Non classées », affichée seulement s'il en existe. -->
                 <RouterLink
                     v-if="sansCategorie > 0"
                     :to="{ path: '/galerie', query: { categorie: 'sans' } }"
@@ -72,6 +88,8 @@
             </div>
         </div>
 
+        <!-- Réservé à l'administratrice. Cacher un lien n'est qu'un confort :
+             c'est le serveur qui refuse pour de bon (voir adminSeulement). -->
         <RouterLink v-if="estAdmin" to="/ajouter">Ajouter</RouterLink>
         <RouterLink v-if="estAdmin" to="/statistiques">Fréquentation</RouterLink>
         <RouterLink to="/compte">Compte</RouterLink>
@@ -95,13 +113,18 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { estAdmin, deconnecter, categories, sansCategorie, chargerCategories } from '../stores/auth.js'
 
+// `useRoute` donne la page courante (son chemin, ses paramètres) ;
+// `useRouter` sert à en changer par le code.
 const route  = useRoute()
 const router = useRouter()
 
+// La catégorie lue dans l'adresse, pour surligner la bonne ligne.
 const categorieActive = computed(() => route.query.categorie || null)
 // Déplié d'emblée si on arrive déjà sur une catégorie.
 const ouvert = ref(!!route.query.categorie)
 
+// `onMounted` : à exécuter une fois que le composant est affiché.
+// C'est le moment habituel pour aller chercher des données.
 onMounted(chargerCategories)
 
 // La liste change quand une création est ajoutée, modifiée ou supprimée.
@@ -114,6 +137,10 @@ function seDeconnecter() {
 </script>
 
 <style scoped>
+/* Le menu est une colonne fixée à gauche, sur toute la hauteur
+   (100vh = 100 % de la hauteur de la fenêtre). `overflow-y: auto` lui
+   permet de défiler seul quand les catégories sont nombreuses.
+   */
 nav {
     position: fixed;
     top: 0;
@@ -128,6 +155,7 @@ nav {
     gap: 16px;
     overflow-y: auto;
 }
+/* Le `>` ne vise que les liens directs du menu, pas ceux du sous-menu. */
 nav > a {
     color: white;
     text-decoration: none;
@@ -174,6 +202,7 @@ nav > a.router-link-active { background-color: rgba(255,255,255,0.25); font-weig
 .chevron svg { width: 14px; height: 14px; transition: transform 0.2s; }
 .chevron svg.pivote { transform: rotate(180deg); }
 
+/* Le trait vertical clair à gauche rattache visuellement les catégories au lien Galerie. */
 .sous-menu {
     display: flex;
     flex-direction: column;
@@ -231,6 +260,7 @@ nav > a.router-link-active { background-color: rgba(255,255,255,0.25); font-weig
     padding: 6px 8px;
 }
 
+/* `margin-top: auto` pousse ce bouton tout en bas de la colonne. */
 .deconnexion {
     margin-top: auto;
     display: flex;

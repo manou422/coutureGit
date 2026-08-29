@@ -1,7 +1,20 @@
+<!-- ===================================================================
+      CategoriesView.vue — « Toutes les catégories »
+     ===================================================================
+
+      Les membres y voient la liste et le nombre de créations de chacune.
+      L'administratrice peut en plus en créer, les renommer, les masquer
+      ou les supprimer.
+
+      Masquer et supprimer sont deux gestes bien différents, et les
+      messages de confirmation prennent soin de le dire : masquer cache la
+      catégorie aux autres membres sans rien effacer ; supprimer efface la
+      catégorie, mais ses créations deviennent simplement « non classées ». -->
 <template>
     <div class="page">
         <h1>Toutes les catégories</h1>
 
+        <!-- Formulaire de création, visible de l'administratrice seule. -->
         <form v-if="estAdmin" class="ajout" @submit.prevent="creer">
             <div class="ajout-ligne">
                 <input v-model="nouveau" type="text" maxlength="100"
@@ -20,6 +33,9 @@
 
         <div v-if="categories.length || sansCategorie" class="grille">
             <div v-for="c in categories" :key="c.id" class="carte">
+                <!-- Une seule catégorie est renommable à la fois : `renommeId` retient
+                     laquelle. Cette carte affiche alors un champ de saisie à la place du
+                     lien — Entrée valide, Échap annule. -->
                 <template v-if="renommeId === c.id">
                     <input v-model="renommeNom" type="text" maxlength="100" class="champ-renomme"
                            @keyup.enter="validerRenommage(c)" @keyup.esc="renommeId = null" />
@@ -41,6 +57,7 @@
                             {{ c.nombre }} création{{ c.nombre > 1 ? 's' : '' }}
                         </span>
                     </RouterLink>
+                    <!-- Bascule masquer / rendre visible. -->
                     <div v-if="estAdmin" class="actions actions-visibilite">
                         <button class="btn-visibilite" @click="basculer(c)">
                             {{ c.visible ? 'Masquer' : 'Rendre visible' }}
@@ -80,11 +97,14 @@ const nouveau       = ref('')
 const nouveauMasque = ref(false)
 const erreur        = ref('')
 const occupe        = ref(false)
-const renommeId     = ref(null)
+const renommeId     = ref(null)  // identifiant de la catégorie en cours de renommage
 const renommeNom    = ref('')
 
 onMounted(chargerCategories)
 
+
+// Crée la catégorie, éventuellement masquée dès le départ, puis
+// recharge la liste partagée pour que le menu se mette à jour aussi.
 async function creer() {
     erreur.value = ''
     occupe.value = true
@@ -111,19 +131,53 @@ async function creer() {
     }
 }
 
+/* --- Les deux messages de confirmation ------------------------------- *
+ *
+ * Masquer et supprimer n'ont rien à voir : le premier ne touche à rien,
+ * le second efface la catégorie mais garde ses créations. Les messages
+ * prennent soin de le dire, pour qu'on n'hésite pas à s'en servir.
+ *
+ * Les accords changent selon le nombre de créations. Plutôt que des
+ * ternaires au milieu du texte, chaque morceau variable reçoit son nom :
+ * le message se relit alors comme une phrase.
+ */
+
+function messageDeMasquage(categorie) {
+    const plusieurs   = categorie.nombre > 1
+    const creations   = `${categorie.nombre} création${plusieurs ? 's' : ''}`
+    const disparaitre = plusieurs ? 'disparaîtront' : 'disparaîtra'
+    const lesVoir     = plusieurs ? 'les' : 'la'
+
+    return `Masquer la catégorie « ${categorie.nom} » ?\n\n`
+        + `Ses ${creations} ${disparaitre} de la galerie des autres membres. `
+        + `Vous continuerez à ${lesVoir} voir, et vous pourrez rendre `
+        + `la catégorie visible à tout moment. Rien n'est supprimé.`
+}
+
+
+function messageDeSuppression(categorie) {
+    const question = `Supprimer la catégorie « ${categorie.nom} » ?`
+
+    // Une catégorie vide ne mérite pas d'explication.
+    if (!categorie.nombre) return question
+
+    const plusieurs = categorie.nombre > 1
+    const creations = `${categorie.nombre} création${plusieurs ? 's' : ''}`
+    const devenir   = plusieurs ? 'deviendront' : 'deviendra'
+    const classees  = `« non classée${plusieurs ? 's' : ''} »`
+
+    return `${question}\n\n${creations} ${devenir} ${classees}. `
+        + `Aucune création n'est supprimée.`
+}
+
+
 // Masquer n'efface rien : les créations restent en place, elles cessent
-// simplement d'apparaître pour les autres membres. Le message le dit,
-// pour qu'on n'hésite pas à s'en servir.
+// simplement d'apparaître pour les autres membres. On ne demande
+// confirmation que s'il y a quelque chose à masquer.
 async function basculer(c) {
     erreur.value = ''
-    if (c.visible && c.nombre) {
-        const message = `Masquer la catégorie « ${c.nom} » ?\n\n`
-            + `Ses ${c.nombre} création${c.nombre > 1 ? 's' : ''} `
-            + `${c.nombre > 1 ? 'disparaîtront' : 'disparaîtra'} de la galerie des autres membres. `
-            + `Vous continuerez à ${c.nombre > 1 ? 'les' : 'la'} voir, et vous pourrez rendre `
-            + `la catégorie visible à tout moment. Rien n'est supprimé.`
-        if (!confirm(message)) return
-    }
+    if (c.visible && c.nombre && !confirm(messageDeMasquage(c))) return
+
     try {
         await basculerVisibilite(c.id, !c.visible)
     } catch (e) {
@@ -131,12 +185,16 @@ async function basculer(c) {
     }
 }
 
+
+// Bascule cette carte en saisie, avec le nom actuel comme point de départ.
 function ouvrirRenommage(c) {
     renommeId.value  = c.id
     renommeNom.value = c.nom
     erreur.value     = ''
 }
 
+
+// Envoie le nouveau nom ; le serveur met à jour les créations concernées.
 async function validerRenommage(c) {
     if (!renommeNom.value.trim()) return
     erreur.value = ''
@@ -151,12 +209,7 @@ async function validerRenommage(c) {
 }
 
 async function supprimer(c) {
-    // Le message dit ce qui arrive aux créations : elles ne sont pas
-    // supprimées, seulement déclassées.
-    const message = c.nombre
-        ? `Supprimer la catégorie « ${c.nom} » ?\n\n${c.nombre} création${c.nombre > 1 ? 's' : ''} deviendra${c.nombre > 1 ? 'ont' : ''} « non classée${c.nombre > 1 ? 's' : ''} ». Aucune création n'est supprimée.`
-        : `Supprimer la catégorie « ${c.nom} » ?`
-    if (!confirm(message)) return
+    if (!confirm(messageDeSuppression(c))) return
 
     erreur.value = ''
     const res = await api(`/api/categories/${c.id}`, { method: 'DELETE' })
@@ -170,6 +223,11 @@ async function supprimer(c) {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+   */
 .page {
     padding: 70px 20px 40px;
     min-height: 100vh;

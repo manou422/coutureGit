@@ -1,3 +1,9 @@
+<!-- ===================================================================
+      ReinitialiserView.vue — choix du nouveau mot de passe
+     ===================================================================
+
+      Page atteinte par le lien reçu par email : /reinitialiser/<jeton>.
+      Le jeton est simplement relayé au serveur, qui le vérifie. -->
 <template>
     <div class="page">
         <div class="carte">
@@ -30,6 +36,7 @@
                 </form>
             </template>
 
+            <!-- Une fois le mot de passe changé, le formulaire cède la place à ce message. -->
             <template v-else>
                 <p class="succes">
                     Mot de passe modifié. Vous pouvez maintenant vous connecter.
@@ -56,6 +63,10 @@ const chargement   = ref(false)
 const termine      = ref(false)
 const voirMdp      = ref(false)
 
+
+// Deux vérifications ici (concordance et longueur) pour prévenir tout
+// de suite ; le serveur revérifie la longueur de son côté, car un
+// contrôle fait dans le navigateur peut toujours être contourné.
 async function valider() {
     erreur.value = ''
     if (motDePasse.value !== confirmation.value) {
@@ -71,6 +82,7 @@ async function valider() {
         const res  = await fetch('/api/reinitialiser', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
+            // `route.params.token` : le morceau de l'adresse déclaré `/:token` dans main.js.
             body:    JSON.stringify({ token: route.params.token, motDePasse: motDePasse.value })
         })
         const data = await res.json()
@@ -85,6 +97,11 @@ async function valider() {
 </script>
 
 <style scoped>
+/* « scoped » : ces règles ne valent que pour ce fichier. Vue ajoute
+   discrètement un marqueur à chaque balise du composant et le reprend
+   dans chaque sélecteur, ce qui évite qu'un `.page` défini ici déteigne
+   sur une autre vue portant la même classe.
+   */
 .page {
     min-height: 100vh;
     display: flex;

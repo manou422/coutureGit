@@ -1,7 +1,15 @@
+<!-- ===================================================================
+      GalerieView.vue — la grille des créations
+     ===================================================================
+
+      Affiche toutes les créations, ou seulement celles d'une catégorie
+      quand l'adresse porte ?categorie=... (les liens du menu). Chaque
+      vignette est un PhotoCard, qui charge son image de son côté. -->
 <template>
     <div class="galerie">
         <h1>
             {{ titre }}
+            <!-- Rappel visible d'elle seule : cette catégorie est cachée aux membres. -->
             <span v-if="masquee" class="badge-masquee">Masquée</span>
         </h1>
 
@@ -15,7 +23,12 @@
             <RouterLink to="/galerie" class="tout-voir">— voir toutes les créations</RouterLink>
         </p>
 
+        <!-- Trois affichages possibles, dans cet ordre : la grille si on a des
+             créations, « Chargement… » pendant l'attente, sinon un message
+             expliquant qu'il n'y a rien à montrer. -->
         <div v-if="photos.length" class="tableau">
+            <!-- Une carte par création. `:photo="photo"` transmet la création au
+                 composant enfant (voir `defineProps` dans PhotoCard.vue). -->
             <PhotoCard v-for="photo in photos" :key="photo.id" :photo="photo" />
         </div>
         <p v-else-if="chargement" class="etat">Chargement...</p>
@@ -33,7 +46,7 @@ import { photos, chargerPhotos } from '../stores/photos.js'
 import { categories, chargerCategories } from '../stores/auth.js'
 
 const route      = useRoute()
-const chargement = ref(true)
+const chargement = ref(true)  // vrai pendant l'attente de la réponse du serveur
 
 const categorieActive = computed(() => route.query.categorie || null)
 
@@ -105,6 +118,11 @@ h1 {
     color: #888;
     margin-top: 40px;
 }
+/* La grille : `auto-fill` avec `minmax(250px, 1fr)` place autant de
+   colonnes de 250 px minimum que la largeur le permet. Le nombre de
+   colonnes s'adapte donc seul, du téléphone au grand écran, sans qu'on
+   ait à l'écrire.
+   */
 .tableau {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
