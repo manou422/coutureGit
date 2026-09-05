@@ -2,3 +2,10 @@ node_modules/
 album/node_modules/
 album/dist/
 .env
+
+# Produits par Cypress à chaque exécution : captures des tests échoués,
+# vidéos et fichiers téléchargés. Ils se recréent, ils n'ont rien à faire
+# dans le dépôt.
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/

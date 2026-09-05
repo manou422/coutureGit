@@ -75,7 +75,7 @@ cd ..
 Puis envoie le projet. Depuis la racine du projet, dans **Git Bash** :
 
 ```bash
-tar czf - --exclude=node_modules --exclude=.git --exclude=.env . \
+tar czf - --exclude=node_modules --exclude=.git --exclude=.env --exclude=cypress --exclude=cypress.config.js . \
   | ssh ortiz@ssh-ortiz.alwaysdata.net 'mkdir -p ~/www && tar xzf - -C ~/www'
 ```
 
@@ -185,7 +185,7 @@ Depuis la racine du projet, sur ton PC :
 
 ```bash
 cd album && npm run build && cd ..
-tar czf - --exclude=node_modules --exclude=.git --exclude=.env . \
+tar czf - --exclude=node_modules --exclude=.git --exclude=.env --exclude=cypress --exclude=cypress.config.js . \
   | ssh ortiz@ssh-ortiz.alwaysdata.net 'tar xzf - -C ~/www'
 ```
 

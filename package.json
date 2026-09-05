@@ -5,7 +5,9 @@
     "dev": "node dev.js",
     "start": "node --env-file-if-exists=.env server.js",
     "seed": "node --env-file-if-exists=.env seed.js",
-    "build": "cd album && npm install && npm run build"
+    "build": "cd album && npm install && npm run build",
+    "cypress": "cypress open",
+    "test:e2e": "cypress run"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -13,5 +15,8 @@
     "express": "^5.2.1",
     "mysql2": "^3.22.3",
     "nodemailer": "^9.0.3"
+  },
+  "devDependencies": {
+    "cypress": "^16.0.0"
   }
 }
