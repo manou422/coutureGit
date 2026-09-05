@@ -210,9 +210,9 @@ h1 {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: #f8f9ff;
+    background: #fdf8f6;
     border-radius: 8px;
-    border: 1px solid #e8ecff;
+    border: 1px solid #f3e6e3;
 }
 .label {
     font-weight: 600;
@@ -229,7 +229,7 @@ h1 {
     font-size: 0.85rem;
     font-weight: 600;
 }
-.badge.admin { background: #e8f0ff; color: #3355cc; }
+.badge.admin { background: #f6eae7; color: #8e5c56; }
 .badge.PA    { background: #e8fff0; color: #2a8a50; }
 .form-edition {
     display: flex;
@@ -260,7 +260,7 @@ input {
     outline: none;
     transition: border-color 0.2s;
 }
-input:focus { border-color: #3355cc; }
+input:focus { border-color: #8e5c56; }
 .input-oeil {
     position: relative;
     display: flex;
@@ -281,7 +281,7 @@ input:focus { border-color: #3355cc; }
     display: flex;
     align-items: center;
 }
-.btn-oeil:hover { color: #3355cc; background: none; }
+.btn-oeil:hover { color: #8e5c56; background: none; }
 .btn-oeil svg { width: 20px; height: 20px; }
 .btns-form {
     display: flex;
@@ -291,7 +291,7 @@ input:focus { border-color: #3355cc; }
 .btn-sauvegarder {
     flex: 1;
     padding: 12px;
-    background: #3355cc;
+    background: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -300,7 +300,7 @@ input:focus { border-color: #3355cc; }
     cursor: pointer;
     transition: background 0.2s;
 }
-.btn-sauvegarder:hover:not(:disabled) { background: #2244bb; }
+.btn-sauvegarder:hover:not(:disabled) { background: #74463f; }
 .btn-sauvegarder:disabled { background: #aaa; cursor: default; }
 .btn-annuler {
     flex: 1;
@@ -322,7 +322,7 @@ input:focus { border-color: #3355cc; }
 .btn-modifier {
     flex: 1;
     padding: 12px;
-    background: #3355cc;
+    background: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -331,7 +331,7 @@ input:focus { border-color: #3355cc; }
     cursor: pointer;
     transition: background 0.2s;
 }
-.btn-modifier:hover { background: #2244bb; }
+.btn-modifier:hover { background: #74463f; }
 .btn-supprimer {
     flex: 1;
     padding: 12px;

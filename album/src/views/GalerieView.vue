@@ -108,7 +108,7 @@ h1 {
     margin-bottom: 24px;
 }
 .tout-voir {
-    color: #3355cc;
+    color: #8e5c56;
     text-decoration: none;
     font-weight: 600;
 }

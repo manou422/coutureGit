@@ -136,7 +136,7 @@ async function sInscrire() {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f4f4f4;
+    background-color: #faf5f2;
     font-family: Arial, sans-serif;
 }
 .inscription-card {
@@ -176,7 +176,7 @@ input {
     outline: none;
     transition: border-color 0.2s;
 }
-input:focus { border-color: #3355cc; }
+input:focus { border-color: #8e5c56; }
 .input-oeil {
     position: relative;
     display: flex;
@@ -197,11 +197,11 @@ input:focus { border-color: #3355cc; }
     display: flex;
     align-items: center;
 }
-.btn-oeil:hover { color: #3355cc; background: none; }
+.btn-oeil:hover { color: #8e5c56; background: none; }
 .btn-oeil svg { width: 20px; height: 20px; }
 button {
     padding: 12px;
-    background-color: #3355cc;
+    background-color: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -211,7 +211,7 @@ button {
     transition: background 0.2s;
     margin-top: 4px;
 }
-button:hover:not(:disabled) { background-color: #2244bb; }
+button:hover:not(:disabled) { background-color: #74463f; }
 button:disabled { background-color: #aaa; cursor: default; }
 .erreur {
     color: #e53e3e;
@@ -234,7 +234,7 @@ button:disabled { background-color: #aaa; cursor: default; }
     color: #666;
 }
 .lien a {
-    color: #3355cc;
+    color: #8e5c56;
     text-decoration: none;
     font-weight: 600;
 }

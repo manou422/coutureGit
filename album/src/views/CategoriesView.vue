@@ -262,10 +262,10 @@ h1 { text-align: center; color: #333; margin-bottom: 28px; }
     outline: none;
     transition: border-color 0.2s;
 }
-.ajout input:focus { border-color: #3355cc; }
+.ajout input:focus { border-color: #8e5c56; }
 .ajout button {
     padding: 11px 20px;
-    background: #3355cc;
+    background: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -274,7 +274,7 @@ h1 { text-align: center; color: #333; margin-bottom: 28px; }
     cursor: pointer;
     transition: background 0.2s;
 }
-.ajout button:hover:not(:disabled) { background: #2244bb; }
+.ajout button:hover:not(:disabled) { background: #74463f; }
 .ajout button:disabled { background: #aaa; cursor: default; }
 
 .grille {
@@ -344,15 +344,15 @@ h1 { text-align: center; color: #333; margin-bottom: 28px; }
     cursor: pointer;
     transition: background 0.2s;
 }
-.btn-gris  { background: #eceef5; color: #444; }
-.btn-gris:hover  { background: #dfe2ec; }
+.btn-gris  { background: #f1e8e5; color: #444; }
+.btn-gris:hover  { background: #e6d8d4; }
 .btn-rouge { background: #fdecec; color: #c53030; }
 .btn-rouge:hover { background: #f9d5d5; }
-.btn-ok    { background: #3355cc; color: white; }
-.btn-ok:hover { background: #2244bb; }
+.btn-ok    { background: #8e5c56; color: white; }
+.btn-ok:hover { background: #74463f; }
 .champ-renomme {
     padding: 9px 11px;
-    border: 2px solid #3355cc;
+    border: 2px solid #8e5c56;
     border-radius: 6px;
     font-size: 0.95rem;
     outline: none;

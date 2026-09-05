@@ -1,12 +1,19 @@
 <!-- ===================================================================
-      NavBar.vue — le menu bleu, à gauche de toutes les pages
+      NavBar.vue — le menu, à gauche de toutes les pages
      ===================================================================
 
-      Il contient les liens principaux, la liste dépliable des catégories,
-      et le bouton de déconnexion. Trois liens ne sont montrés que si la
-      personne connectée est l'administratrice. -->
+      Il contient le logo, les liens principaux, la liste dépliable des
+      catégories, et le bouton de déconnexion. Trois liens ne sont montrés
+      que si la personne connectée est l'administratrice. -->
 <template>
     <nav>
+        <!-- Le logo ouvre le menu. Il n'est volontairement pas cliquable :
+             le lien « Accueil » juste en dessous fait déjà ce travail, et
+             deux chemins vers la même page se marchent dessus. -->
+        <img class="logo" src="/photos/logo-manucrea.png"
+             alt="ManuCrea Couture — fait main avec passion" />
+        <div class="filet" aria-hidden="true"></div>
+
         <!-- `RouterLink` remplace `<a href>` : il change la page sans la
              recharger, et se marque tout seul comme actif quand on s'y trouve
              (classe router-link-active, stylée plus bas). -->
@@ -140,32 +147,74 @@ function seDeconnecter() {
 /* Le menu est une colonne fixée à gauche, sur toute la hauteur
    (100vh = 100 % de la hauteur de la fenêtre). `overflow-y: auto` lui
    permet de défiler seul quand les catégories sont nombreuses.
+
+   Le dégradé, à peine perceptible, évite l'aplat un peu dur d'une
+   couleur unie sur une bande aussi haute. Les deux tons sont ceux du
+   logo, assombris pour que le texte blanc reste lisible par-dessus.
    */
 nav {
     position: fixed;
     top: 0;
     left: 0;
-    width: 160px;
+    width: 190px;
     height: 100vh;
-    background-color: #3355cc;
-    padding: 40px 16px;
+    background: linear-gradient(180deg, #7c5450 0%, #5e403d 100%);
+    padding: 22px 14px 28px;
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
     overflow-y: auto;
+    /* Barre de défilement discrète : la barre système, claire et large,
+       trancherait sur le fond sombre. */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.3) transparent;
 }
+nav::-webkit-scrollbar { width: 6px; }
+nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 3px; }
+
+/* Le logo est carré, sur fond crème : le `border-radius` le ramène au
+   rond de son propre dessin, et ne rogne que les coins, restés vides.
+   `flex-shrink: 0` l'empêche d'être écrasé quand les catégories sont
+   assez nombreuses pour remplir la colonne. */
+.logo {
+    display: block;
+    width: 128px;
+    height: 128px;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.5);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+}
+/* Filet dégradé : il sépare le logo des liens sans poser un trait net
+   d'un bord à l'autre, qui ferait lourd. */
+.filet {
+    height: 1px;
+    margin: 2px 2px 4px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    flex-shrink: 0;
+}
+
 /* Le `>` ne vise que les liens directs du menu, pas ceux du sous-menu. */
 nav > a {
-    color: white;
+    color: #f8efec;
     text-decoration: none;
     font-size: 0.95rem;
+    letter-spacing: 0.01em;
     padding: 10px 12px;
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: background 0.2s, box-shadow 0.2s;
 }
-nav > a:hover { background-color: rgba(255,255,255,0.15); }
-nav > a.router-link-active { background-color: rgba(255,255,255,0.25); font-weight: 600; }
+nav > a:hover { background-color: rgba(255,255,255,0.14); }
+/* Le liseré clair à gauche marque la page courante plus franchement que
+   le seul fond, qui reste discret sur ce dégradé. */
+nav > a.router-link-active {
+    background-color: rgba(255,255,255,0.22);
+    font-weight: 600;
+    color: #fff;
+    box-shadow: inset 3px 0 0 #e8c3bc;
+}
 
 .groupe-galerie { display: flex; flex-direction: column; gap: 4px; }
 .lien-galerie {
@@ -173,16 +222,22 @@ nav > a.router-link-active { background-color: rgba(255,255,255,0.25); font-weig
     align-items: center;
     justify-content: space-between;
     gap: 4px;
-    color: white;
+    color: #f8efec;
     text-decoration: none;
     font-size: 0.95rem;
+    letter-spacing: 0.01em;
     padding: 10px 6px 10px 12px;
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: background 0.2s, box-shadow 0.2s;
 }
-.lien-galerie:hover { background-color: rgba(255,255,255,0.15); }
+.lien-galerie:hover { background-color: rgba(255,255,255,0.14); }
 /* `exact-active` seul : sinon le lien resterait surligné sur une catégorie. */
-.lien-galerie.router-link-exact-active { background-color: rgba(255,255,255,0.25); font-weight: 600; }
+.lien-galerie.router-link-exact-active {
+    background-color: rgba(255,255,255,0.22);
+    font-weight: 600;
+    color: #fff;
+    box-shadow: inset 3px 0 0 #e8c3bc;
+}
 
 .chevron {
     display: flex;
@@ -223,8 +278,13 @@ nav > a.router-link-active { background-color: rgba(255,255,255,0.25); font-weig
     border-radius: 6px;
     transition: background 0.2s, color 0.2s;
 }
-.categorie:hover { background-color: rgba(255,255,255,0.15); color: white; }
-.categorie.actif { background-color: rgba(255,255,255,0.25); color: white; font-weight: 600; }
+.categorie:hover { background-color: rgba(255,255,255,0.14); color: white; }
+.categorie.actif {
+    background-color: rgba(255,255,255,0.22);
+    color: white;
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 #e8c3bc;
+}
 .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .categorie.masquee .nom { opacity: 0.75; }
 .oeil {

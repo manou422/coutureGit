@@ -107,7 +107,7 @@ async function valider() {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f4f4f4;
+    background-color: #faf5f2;
     font-family: Arial, sans-serif;
     padding: 20px;
 }
@@ -137,7 +137,7 @@ input {
     width: 100%;
     transition: border-color 0.2s;
 }
-input:focus { border-color: #3355cc; }
+input:focus { border-color: #8e5c56; }
 .input-oeil { position: relative; display: flex; align-items: center; }
 .input-oeil input { padding-right: 70px; }
 .btn-oeil {
@@ -147,14 +147,14 @@ input:focus { border-color: #3355cc; }
     border: none;
     padding: 4px 8px;
     cursor: pointer;
-    color: #3355cc;
+    color: #8e5c56;
     font-size: 0.85rem;
     font-weight: 600;
     width: auto;
 }
 button[type=submit] {
     padding: 12px;
-    background: #3355cc;
+    background: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -163,13 +163,13 @@ button[type=submit] {
     cursor: pointer;
     transition: background 0.2s;
 }
-button[type=submit]:hover:not(:disabled) { background: #2244bb; }
+button[type=submit]:hover:not(:disabled) { background: #74463f; }
 button[type=submit]:disabled { background: #aaa; cursor: default; }
 .bouton-lien {
     display: block;
     text-align: center;
     padding: 12px;
-    background: #3355cc;
+    background: #8e5c56;
     color: white;
     border-radius: 8px;
     font-weight: 600;
@@ -179,5 +179,5 @@ button[type=submit]:disabled { background: #aaa; cursor: default; }
 .erreur { color: #e53e3e; font-size: 0.9rem; text-align: center; }
 .succes { color: #38a169; font-size: 0.95rem; text-align: center; line-height: 1.5; }
 .lien { text-align: center; margin-top: 20px; font-size: 0.9rem; }
-.lien a { color: #3355cc; font-weight: 600; text-decoration: none; }
+.lien a { color: #8e5c56; font-weight: 600; text-decoration: none; }
 </style>

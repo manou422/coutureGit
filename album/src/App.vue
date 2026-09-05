@@ -63,7 +63,9 @@ const afficherRetour = computed(() =>
    largeur annoncée inclue bordure et remplissage.
    */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
-/* Décalage égal à la largeur du menu fixe, pour ne rien cacher. */
-.avec-nav { padding-left: 160px; }
+body { font-family: Arial, sans-serif; background-color: #faf5f2; }
+/* Décalage égal à la largeur du menu fixe, pour ne rien cacher.
+   À changer en même temps que la largeur de `nav` dans NavBar.vue :
+   les deux valeurs doivent rester identiques. */
+.avec-nav { padding-left: 190px; }
 </style>

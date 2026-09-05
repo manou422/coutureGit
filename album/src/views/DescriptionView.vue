@@ -97,7 +97,7 @@ onUnmounted(() => {
     align-items: center;
     min-height: 100vh;
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
+    background-color: #faf5f2;
     gap: 16px;
     padding: 70px 20px 40px;
     box-sizing: border-box;
@@ -123,7 +123,7 @@ onUnmounted(() => {
     max-width: 100%;
     height: 320px;
     border-radius: 12px;
-    background: linear-gradient(100deg, #e8e8e8 30%, #f4f4f4 50%, #e8e8e8 70%);
+    background: linear-gradient(100deg, #e8e8e8 30%, #faf5f2 50%, #e8e8e8 70%);
     background-size: 200% 100%;
     animation: glisse 1.2s ease-in-out infinite;
 }
@@ -147,13 +147,13 @@ onUnmounted(() => {
 }
 .vignette:hover { transform: translateY(-2px); }
 /* Un cadre bleu marque la vignette en cours. */
-.vignette.active { border-color: #3355cc; }
+.vignette.active { border-color: #8e5c56; }
 .vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .attente-vignette {
     display: block;
     width: 100%;
     height: 100%;
-    background: linear-gradient(100deg, #e8e8e8 30%, #f4f4f4 50%, #e8e8e8 70%);
+    background: linear-gradient(100deg, #e8e8e8 30%, #faf5f2 50%, #e8e8e8 70%);
     background-size: 200% 100%;
     animation: glisse 1.2s ease-in-out infinite;
 }

@@ -166,7 +166,7 @@ async function soumettre() {
     padding: 90px 20px 40px;
     min-height: 100vh;
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
+    background-color: #faf5f2;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -206,7 +206,7 @@ input[type="text"], textarea {
     transition: border-color 0.2s;
     font-family: Arial, sans-serif;
 }
-input[type="text"]:focus, textarea:focus { border-color: #3355cc; }
+input[type="text"]:focus, textarea:focus { border-color: #8e5c56; }
 .apercu {
     margin-top: 10px;
     max-width: 100%;
@@ -217,7 +217,7 @@ input[type="text"]:focus, textarea:focus { border-color: #3355cc; }
 }
 button {
     padding: 12px;
-    background-color: #3355cc;
+    background-color: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -226,7 +226,7 @@ button {
     cursor: pointer;
     transition: background 0.2s;
 }
-button:hover:not(:disabled) { background-color: #2244bb; }
+button:hover:not(:disabled) { background-color: #74463f; }
 button:disabled { background-color: #aaa; cursor: default; }
 .succes {
     text-align: center;

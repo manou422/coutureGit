@@ -206,7 +206,7 @@ async function sauvegarder() {
     padding: 90px 20px 40px;
     min-height: 100vh;
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
+    background-color: #faf5f2;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -244,7 +244,7 @@ input[type=text], textarea {
     outline: none;
     transition: border-color 0.2s;
 }
-input[type=text]:focus, textarea:focus { border-color: #3355cc; }
+input[type=text]:focus, textarea:focus { border-color: #8e5c56; }
 .fichier { margin-top: 10px; font-size: 0.9rem; }
 .apercus {
     display: grid;
@@ -263,7 +263,7 @@ input[type=text]:focus, textarea:focus { border-color: #3355cc; }
     display: block;
     width: 100%;
     height: 100%;
-    background: linear-gradient(100deg, #e8e8e8 30%, #f4f4f4 50%, #e8e8e8 70%);
+    background: linear-gradient(100deg, #e8e8e8 30%, #faf5f2 50%, #e8e8e8 70%);
     background-size: 200% 100%;
     animation: glisse 1.2s ease-in-out infinite;
 }
@@ -299,10 +299,10 @@ input[type=text]:focus, textarea:focus { border-color: #3355cc; }
 .retirer { right: 4px; }
 .retirer:hover { background: #e53e3e; }
 .promouvoir { left: 4px; font-size: 0.85rem; }
-.promouvoir:hover { background: #3355cc; }
+.promouvoir:hover { background: #8e5c56; }
 button[type=submit] {
     padding: 12px;
-    background: #3355cc;
+    background: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -311,7 +311,7 @@ button[type=submit] {
     cursor: pointer;
     transition: background 0.2s;
 }
-button[type=submit]:hover:not(:disabled) { background: #2244bb; }
+button[type=submit]:hover:not(:disabled) { background: #74463f; }
 button[type=submit]:disabled { background: #aaa; cursor: default; }
 .poids { font-size: 0.82rem; color: #777; }
 .succes { text-align: center; color: #38a169; font-weight: 600; }

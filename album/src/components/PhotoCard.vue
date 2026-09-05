@@ -171,7 +171,7 @@ async function supprimer() {
     transition: background 0.2s;
     text-decoration: none;
 }
-.btn-modifier:hover { background-color: #e8f0ff; }
+.btn-modifier:hover { background-color: #f6eae7; }
 .btn-supprimer {
     background: none;
     border: none;

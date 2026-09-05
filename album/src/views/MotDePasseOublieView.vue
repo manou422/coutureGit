@@ -100,7 +100,7 @@ async function envoyer() {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f4f4f4;
+    background-color: #faf5f2;
     font-family: Arial, sans-serif;
     padding: 20px;
 }
@@ -146,10 +146,10 @@ input {
     outline: none;
     transition: border-color 0.2s;
 }
-input:focus { border-color: #3355cc; }
+input:focus { border-color: #8e5c56; }
 button {
     padding: 12px;
-    background: #3355cc;
+    background: #8e5c56;
     color: white;
     border: none;
     border-radius: 8px;
@@ -158,10 +158,10 @@ button {
     cursor: pointer;
     transition: background 0.2s;
 }
-button:hover:not(:disabled) { background: #2244bb; }
+button:hover:not(:disabled) { background: #74463f; }
 button:disabled { background: #aaa; cursor: default; }
 .erreur { color: #e53e3e; font-size: 0.9rem; text-align: center; }
 .succes { color: #38a169; font-size: 0.9rem; text-align: center; line-height: 1.5; }
 .lien { text-align: center; margin-top: 20px; font-size: 0.9rem; }
-.lien a { color: #3355cc; font-weight: 600; text-decoration: none; }
+.lien a { color: #8e5c56; font-weight: 600; text-decoration: none; }
 </style>

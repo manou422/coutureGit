@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-labelledby="titre">
+  <title id="titre">Fil, aiguille, bobines et ciseaux de couture</title>
+
+  <!-- Fond : carte arrondie, dans le bleu du menu tres eclairci -->
+  <rect x="0" y="0" width="1200" height="675" rx="28" fill="#eaeefb"/>
+  <circle cx="1010" cy="120" r="185" fill="#ffffff" opacity="0.5"/>
+  <circle cx="150" cy="590" r="140" fill="#ffffff" opacity="0.4"/>
+  <circle cx="640" cy="470" r="95" fill="#ffffff" opacity="0.35"/>
+
+  <!-- Ligne de piqure decorative en bas -->
+  <path d="M 70 618 C 350 585, 780 660, 1130 600" fill="none" stroke="#3355cc"
+        stroke-width="4" stroke-linecap="round" stroke-dasharray="20 14" opacity="0.3"/>
+
+  <!-- ---------- Bobines ---------- -->
+  <!-- Bobine bleue -->
+  <g transform="translate(110 430)">
+    <rect x="0" y="0" width="76" height="14" rx="7" fill="#d3a66a"/>
+    <rect x="9" y="13" width="58" height="98" fill="#3355cc"/>
+    <rect x="14" y="19" width="9" height="86" rx="4.5" fill="#ffffff" opacity="0.22"/>
+    <path d="M 9 40 H 67 M 9 62 H 67 M 9 84 H 67" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.18"/>
+    <rect x="0" y="110" width="76" height="14" rx="7" fill="#c8974f"/>
+  </g>
+  <!-- Bobine terracotta -->
+  <g transform="translate(215 455)">
+    <rect x="0" y="0" width="76" height="14" rx="7" fill="#d3a66a"/>
+    <rect x="9" y="13" width="58" height="98" fill="#e0715a"/>
+    <rect x="14" y="19" width="9" height="86" rx="4.5" fill="#ffffff" opacity="0.25"/>
+    <path d="M 9 40 H 67 M 9 62 H 67 M 9 84 H 67" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.18"/>
+    <rect x="0" y="110" width="76" height="14" rx="7" fill="#c8974f"/>
+  </g>
+  <!-- Bobine moutarde -->
+  <g transform="translate(320 415)">
+    <rect x="0" y="0" width="76" height="14" rx="7" fill="#d3a66a"/>
+    <rect x="9" y="13" width="58" height="98" fill="#e8b04b"/>
+    <rect x="14" y="19" width="9" height="86" rx="4.5" fill="#ffffff" opacity="0.3"/>
+    <path d="M 9 40 H 67 M 9 62 H 67 M 9 84 H 67" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.2"/>
+    <rect x="0" y="110" width="76" height="14" rx="7" fill="#c8974f"/>
+  </g>
+
+  <!-- ---------- Fils ---------- -->
+  <!-- Boucle bleue au-dessus de la premiere bobine -->
+  <path d="M 148 428 C 112 372, 178 340, 206 378 C 224 402, 194 420, 182 400"
+        fill="none" stroke="#3355cc" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+  <!-- Fil principal : de la bobine terracotta jusqu'au chas de l'aiguille -->
+  <path d="M 253 452 C 300 378, 362 472, 430 418 C 500 366, 522 300, 600 288
+           C 658 279, 688 240, 712 208"
+        fill="none" stroke="#e0715a" stroke-width="6" stroke-linecap="round"/>
+  <!-- Brin qui depasse apres le chas -->
+  <path d="M 712 208 C 742 196, 762 206, 772 224"
+        fill="none" stroke="#e0715a" stroke-width="5" stroke-linecap="round" opacity="0.75"/>
+
+  <!-- ---------- Aiguille ---------- -->
+  <g transform="translate(690 215) rotate(-22)">
+    <path d="M 6 -7 L 212 -2.5 L 248 0 L 212 2.5 L 6 7 C -3 7, -3 -7, 6 -7 Z" fill="#9aa4b8"/>
+    <path d="M 6 -7 L 212 -2.5 L 248 0 L 150 0.6 L 6 -1 C -2 -1, -2 -7, 6 -7 Z" fill="#c3cbdb"/>
+    <ellipse cx="27" cy="0" rx="11" ry="3.6" fill="#eaeefb"/>
+  </g>
+
+  <!-- ---------- Ciseaux ---------- -->
+  <g transform="translate(950 480) rotate(-14)">
+    <path d="M 4 -6 L 4 10 L -172 -34 C -181 -36, -181 -46, -172 -47 Z" fill="#b9c2d6"/>
+    <path d="M 4 6 L 4 -10 L -172 34 C -181 36, -181 46, -172 47 Z" fill="#cdd4e2"/>
+    <path d="M 6 -3 C 30 -15, 50 -25, 66 -31" fill="none" stroke="#2f3542"
+          stroke-width="13" stroke-linecap="round"/>
+    <path d="M 6 3 C 30 15, 50 25, 66 31" fill="none" stroke="#2f3542"
+          stroke-width="13" stroke-linecap="round"/>
+    <ellipse cx="92" cy="-41" rx="31" ry="22" transform="rotate(-24 92 -41)"
+             fill="none" stroke="#2f3542" stroke-width="13"/>
+    <ellipse cx="92" cy="41" rx="31" ry="22" transform="rotate(24 92 41)"
+             fill="none" stroke="#2f3542" stroke-width="13"/>
+    <circle cx="0" cy="0" r="10" fill="#8f9bb3"/>
+    <circle cx="0" cy="0" r="4" fill="#eaeefb"/>
+  </g>
+
+  <!-- ---------- Boutons ---------- -->
+  <g>
+    <circle cx="452" cy="558" r="26" fill="#3355cc"/>
+    <circle cx="452" cy="558" r="18" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+    <g fill="#eaeefb">
+      <circle cx="446" cy="552" r="3.6"/><circle cx="458" cy="552" r="3.6"/>
+      <circle cx="446" cy="564" r="3.6"/><circle cx="458" cy="564" r="3.6"/>
+    </g>
+  </g>
+  <g>
+    <circle cx="516" cy="590" r="20" fill="#e8b04b"/>
+    <circle cx="516" cy="590" r="13.5" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.45"/>
+    <g fill="#eaeefb">
+      <circle cx="511" cy="585" r="2.9"/><circle cx="521" cy="585" r="2.9"/>
+      <circle cx="511" cy="595" r="2.9"/><circle cx="521" cy="595" r="2.9"/>
+    </g>
+  </g>
+  <g>
+    <circle cx="408" cy="604" r="16" fill="#e0715a"/>
+    <circle cx="408" cy="604" r="10.5" fill="none" stroke="#ffffff" stroke-width="1.8" opacity="0.45"/>
+    <g fill="#eaeefb">
+      <circle cx="404" cy="600" r="2.3"/><circle cx="412" cy="600" r="2.3"/>
+      <circle cx="404" cy="608" r="2.3"/><circle cx="412" cy="608" r="2.3"/>
+    </g>
+  </g>
+</svg>

@@ -155,7 +155,7 @@ h2 {
     align-items: center;
     text-align: center;
 }
-.chiffre { font-size: 2rem; font-weight: 700; color: #3355cc; line-height: 1; }
+.chiffre { font-size: 2rem; font-weight: 700; color: #8e5c56; line-height: 1; }
 .libelle { font-size: 0.85rem; color: #666; }
 
 table {
@@ -173,7 +173,7 @@ th, td {
     border-bottom: 1px solid #f0f0f0;
 }
 th {
-    background: #f8f9ff;
+    background: #fdf8f6;
     color: #555;
     font-size: 0.82rem;
     text-transform: uppercase;
@@ -187,8 +187,8 @@ td.qui { color: #777; font-size: 0.85rem; }
     display: inline-block;
     min-width: 26px;
     padding: 2px 9px;
-    background: #e8f0ff;
-    color: #3355cc;
+    background: #f6eae7;
+    color: #8e5c56;
     border-radius: 12px;
     font-weight: 600;
     font-size: 0.85rem;
@@ -197,8 +197,8 @@ td.qui { color: #777; font-size: 0.85rem; }
     display: inline-block;
     margin-left: 6px;
     padding: 1px 8px;
-    background: #e8f0ff;
-    color: #3355cc;
+    background: #f6eae7;
+    color: #8e5c56;
     border-radius: 10px;
     font-size: 0.72rem;
     font-weight: 600;

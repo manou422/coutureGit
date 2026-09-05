@@ -27,7 +27,7 @@
     position: fixed;
     top: 16px;
     left: 176px;
-    background: #3355cc;
+    background: #8e5c56;
     border: none;
     color: white;
     width: 48px;
@@ -42,5 +42,5 @@
     justify-content: center;
     transition: background 0.2s;
 }
-.btn-retour:hover { background: #2244bb; }
+.btn-retour:hover { background: #74463f; }
 </style>
