@@ -38,4 +38,11 @@ img {
     max-width: min(100%, 760px);
     height: auto;
 }
+
+/* Sur téléphone, le bouton d'ouverture du menu flotte en haut à gauche.
+   Cette page est la seule à commencer aussi haut : on lui dégage la
+   place, sans quoi le bouton couvrirait le titre. */
+@media (max-width: 620px) {
+    .home { padding-top: 68px; }
+}
 </style>

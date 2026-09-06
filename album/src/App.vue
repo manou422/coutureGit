@@ -68,4 +68,12 @@ body { font-family: Arial, sans-serif; background-color: #faf5f2; }
    À changer en même temps que la largeur de `nav` dans NavBar.vue :
    les deux valeurs doivent rester identiques. */
 .avec-nav { padding-left: 190px; }
+
+/* Sur téléphone, le menu ne tient plus une colonne en permanence : il se
+   range hors de l'écran et glisse par-dessus la page (voir NavBar.vue).
+   Le décalage n'a donc plus lieu d'être. Le seuil doit rester le même
+   des deux côtés. */
+@media (max-width: 620px) {
+    .avec-nav { padding-left: 0; }
+}
 </style>

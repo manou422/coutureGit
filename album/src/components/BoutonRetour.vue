@@ -20,13 +20,13 @@
 
 <style scoped>
 /* `position: fixed` : le bouton reste à sa place quand la page défile.
-   Le `left: 176px` le pose juste à droite du menu (160 px de large),
-   et `z-index: 999` le maintient au-dessus du contenu.
+   Le `left` le pose juste à droite du menu, large de 190 px (voir
+   NavBar.vue), et `z-index: 999` le maintient au-dessus du contenu.
    */
 .btn-retour {
     position: fixed;
     top: 16px;
-    left: 176px;
+    left: 206px;
     background: #8e5c56;
     border: none;
     color: white;
@@ -43,4 +43,14 @@
     transition: background 0.2s;
 }
 .btn-retour:hover { background: #74463f; }
+
+/* Sur téléphone, le menu ne tient plus la gauche de l'écran : le bouton
+   vient se ranger à côté de celui qui l'ouvre — 48 px de large, posé à
+   12 px du bord — et s'aligne sur lui. */
+@media (max-width: 620px) {
+    .btn-retour {
+        top: 10px;
+        left: 72px;
+    }
+}
 </style>

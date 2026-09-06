@@ -185,6 +185,11 @@ async function supprimerCompte() {
     justify-content: center;
     padding: 40px 20px;
 }
+/* Sur un écran court, la carte peut remonter jusqu'en haut : on dégage
+   la place du bouton d'ouverture du menu, qui y flotte. */
+@media (max-width: 620px) {
+    .compte-page { padding-top: 68px; }
+}
 .compte-card {
     background: white;
     border-radius: 12px;
