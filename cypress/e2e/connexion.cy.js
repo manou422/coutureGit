@@ -60,7 +60,8 @@ describe('Connexion réussie', () => {
     })
 
     it('mène à l\'accueil et affiche le menu', () => {
-        cy.connexionParLeFormulaire(Cypress.env('mail'), Cypress.env('motDePasse'))
+        // Sans arguments : la commande prend les identifiants du .env.
+        cy.connexionParLeFormulaire()
         cy.location('pathname').should('eq', '/')
         cy.get('nav').should('be.visible')
     })

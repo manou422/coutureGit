@@ -63,9 +63,16 @@ module.exports = defineConfig({
         viewportWidth:  1280,
         viewportHeight: 800,
 
-        // Identifiants mis à disposition des tests via `Cypress.env(...)`.
-        // Absents du .env, ils valent `undefined` et les tests qui en
-        // dépendent se sautent d'eux-mêmes plutôt que d'échouer.
+        // Identifiants mis à disposition des tests.
+        //
+        // Depuis Cypress 16, `env` est réservé aux valeurs SENSIBLES :
+        // elles restent côté Node et ne se lisent que par `cy.env([...])`,
+        // sans jamais être recopiées dans le navigateur — donc sans
+        // apparaître dans les captures d'écran ni dans le journal. Les
+        // valeurs anodines se déclarent, elles, dans `expose`.
+        //
+        // Absents du .env, ces champs valent `undefined` : les tests qui
+        // en dépendent se sautent d'eux-mêmes plutôt que d'échouer.
         env: {
             mail:       env.ADMIN_EMAIL,
             motDePasse: env.ADMIN_PASSWORD,
