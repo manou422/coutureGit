@@ -31,10 +31,13 @@ describe('Menu et navigation', () => {
         })
     })
 
-    it('mène à la galerie et souligne le lien courant', () => {
+    it('déplie la liste des catégories sans quitter la page', () => {
+        // « Galerie » n'est plus un lien : elle ouvre la liste, et rien
+        // d'autre. Les créations se regardent par catégorie.
         cy.get('nav').contains('Galerie').click()
-        cy.location('pathname').should('eq', '/galerie')
-        cy.get('.lien-galerie').should('have.class', 'router-link-exact-active')
+        cy.location('pathname').should('eq', '/')
+        cy.get('.sous-menu').should('be.visible')
+        cy.get('.lien-galerie').should('have.attr', 'aria-expanded', 'true')
     })
 
     it('déplie et replie la liste des catégories', () => {

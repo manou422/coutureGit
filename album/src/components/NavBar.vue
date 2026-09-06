@@ -48,31 +48,35 @@
         <RouterLink to="/">Accueil</RouterLink>
 
         <div class="groupe-galerie">
-            <!-- Un clic navigue vers la galerie complète ET déplie la liste :
-                 le lien reste utilisable tel quel, les catégories s'ajoutent. -->
-            <RouterLink
-                to="/galerie"
+            <!-- « Galerie » ne mène nulle part : elle déplie et replie la
+                 liste des catégories, rien d'autre. On regarde donc les
+                 créations par catégorie ; pour les voir toutes, la galerie
+                 filtrée porte un lien « voir toutes les créations ».
+
+                 C'est un bouton et non un lien, et `aria-expanded` dit aux
+                 lecteurs d'écran ce qu'il commande. -->
+            <button
+                type="button"
                 class="lien-galerie"
                 :class="{ 'sous-menu-ouvert': ouvert }"
                 :aria-expanded="ouvert"
-                @click="ouvert = true"
+                aria-controls="liste-categories"
+                @click="ouvert = !ouvert"
             >
                 <span>Galerie</span>
-                <button
-                    type="button"
-                    class="chevron"
-                    :aria-label="ouvert ? 'Replier les catégories' : 'Déplier les catégories'"
-                    @click.prevent.stop="ouvert = !ouvert"
-                >
+                <!-- Le chevron n'est plus qu'un dessin : c'est le bouton
+                     entier qui réagit, et non ce seul coin. Un bouton dans un
+                     bouton serait d'ailleurs du HTML invalide. -->
+                <span class="chevron" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                          stroke-linecap="round" stroke-linejoin="round" :class="{ pivote: ouvert }">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
-                </button>
-            </RouterLink>
+                </span>
+            </button>
 
             <!-- La liste des catégories, affichée seulement quand le menu est déplié. -->
-            <div v-if="ouvert" class="sous-menu">
+            <div v-if="ouvert" id="liste-categories" class="sous-menu">
                 <RouterLink to="/categories" class="categorie categorie-toutes">
                     <span class="nom">Toutes les catégories</span>
                 </RouterLink>
@@ -278,43 +282,42 @@ nav > a.router-link-active {
 }
 
 .groupe-galerie { display: flex; flex-direction: column; gap: 4px; }
+/* Un bouton, et non plus un lien : d'où les remises à zéro du fond, de
+   la bordure et de la police, qu'un navigateur impose d'office aux
+   boutons et qui le feraient jurer au milieu des autres entrées. */
 .lien-galerie {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 4px;
+    width: 100%;
+    background: none;
+    border: none;
     color: #f8efec;
-    text-decoration: none;
+    font-family: inherit;
     font-size: 0.95rem;
     letter-spacing: 0.01em;
+    text-align: left;
+    cursor: pointer;
     padding: 10px 6px 10px 12px;
     border-radius: 8px;
     transition: background 0.2s, box-shadow 0.2s;
 }
 .lien-galerie:hover { background-color: rgba(255,255,255,0.14); }
-/* `exact-active` seul : sinon le lien resterait surligné sur une catégorie. */
-.lien-galerie.router-link-exact-active {
-    background-color: rgba(255,255,255,0.22);
-    font-weight: 600;
-    color: #fff;
-    box-shadow: inset 3px 0 0 #e8c3bc;
-}
+/* Le fond reste marqué tant que la liste est dépliée : il rattache les
+   catégories à l'entrée qui les commande. Cette classe remplace le
+   surlignage de page courante, qui n'a plus de sens sur un bouton. */
+.lien-galerie.sous-menu-ouvert { background-color: rgba(255,255,255,0.14); }
 
+/* Simple boîte autour du chevron : il ne se clique plus tout seul. */
 .chevron {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 24px;
     height: 24px;
-    padding: 0;
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    border-radius: 4px;
     flex-shrink: 0;
 }
-.chevron:hover { background-color: rgba(255,255,255,0.2); }
 .chevron svg { width: 14px; height: 14px; transition: transform 0.2s; }
 .chevron svg.pivote { transform: rotate(180deg); }
 
