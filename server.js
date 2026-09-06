@@ -762,6 +762,34 @@ function nettoyerCategorie(valeur) {
     return propre.length ? propre : null
 }
 
+
+// Même travail pour le titre d'une création, à la longueur de sa colonne.
+//
+// C'est cette forme nettoyée qui sert à reconnaître un doublon : sans le
+// trim, « Chouchou » et «  Chouchou » passeraient pour deux créations
+// différentes alors qu'on voit la même chose à l'écran.
+function nettoyerTitre(valeur) {
+    if (typeof valeur !== 'string') return null
+    const propre = valeur.trim().slice(0, 255)
+    return propre.length ? propre : null
+}
+
+
+// Cherche une création déjà enregistrée sous ce titre, en ignorant
+// éventuellement celle qu'on est en train de modifier.
+//
+// Le titre est le seul repère utilisable : deux photos de la même
+// création peuvent différer d'un octet — recadrage, recompression — sans
+// qu'on y voie quoi que ce soit, comparer les images ne dirait donc rien.
+// La comparaison de MySQL ignore la casse : « Sac » et « sac » se
+// heurtent bien.
+async function titreDejaPris(titre, sauf = null) {
+    const [lignes] = sauf === null
+        ? await pool.query('SELECT titre FROM creations WHERE titre = ?', [titre])
+        : await pool.query('SELECT titre FROM creations WHERE titre = ? AND id <> ?', [titre, sauf])
+    return lignes.length ? lignes[0].titre : null
+}
+
 /* --- Catégories masquées ------------------------------------------- *
  *
  * Une création est visible si sa catégorie ne l'est pas moins. Trois cas
@@ -1092,8 +1120,23 @@ app.get('/api/photos/:id', authentifier, async (req, res) => {
 // catégorie et les photos (chacune en « data URL » base64, produite par
 // le navigateur après redimensionnement).
 app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
-    const { titre, description } = req.body
+    const titre = nettoyerTitre(req.body.titre)
+    const { description } = req.body
     if (!titre) return res.status(400).json({ erreur: 'Le titre est obligatoire' })
+
+    // Vérifié avant de lire les images : elles pèsent des mégaoctets, il
+    // serait absurde de les décoder pour refuser ensuite.
+    //
+    // On renvoie le titre tel qu'il est en base, et non celui qui vient
+    // d'être saisi : si la différence n'est qu'une casse ou une espace,
+    // autant la montrer plutôt que de laisser deviner.
+    const dejaPris = await titreDejaPris(titre)
+    if (dejaPris) {
+        return res.status(409).json({
+            erreur: `La création « ${dejaPris} » existe déjà. Choisissez un autre titre, ` +
+                    `ou modifiez celle qui porte déjà ce nom.`
+        })
+    }
 
     const images = normaliserImages(req.body)
     if (!images.length) return res.status(400).json({ erreur: 'Au moins une photo est requise' })
@@ -1171,7 +1214,25 @@ async function mettreAJourLaCouverture(creationId) {
 // aligne alors la base sur cette liste, en trois temps.
 app.put('/api/photos/:id', authentifier, adminSeulement, async (req, res) => {
     const creationId = req.params.id
-    const { titre, description } = req.body
+    const titre = nettoyerTitre(req.body.titre)
+    const { description } = req.body
+    if (!titre) return res.status(400).json({ erreur: 'Le titre est obligatoire' })
+
+    const [actuelle] = await pool.query('SELECT titre FROM creations WHERE id = ?', [creationId])
+    if (!actuelle.length) return res.status(404).json({ erreur: 'Création introuvable' })
+
+    // Le doublon n'est cherché que si le titre change vraiment. Sinon les
+    // créations qui portent déjà le même nom — celles d'avant cette règle
+    // — deviendraient impossibles à modifier, y compris pour les
+    // départager, ce qui serait exactement l'inverse du but.
+    if (titre !== actuelle[0].titre) {
+        const dejaPris = await titreDejaPris(titre, creationId)
+        if (dejaPris) {
+            return res.status(409).json({
+                erreur: `Une autre création porte déjà le titre « ${dejaPris} »`
+            })
+        }
+    }
 
     await pool.query(
         'UPDATE creations SET titre = ?, description = ?, categorie = ? WHERE id = ?',
