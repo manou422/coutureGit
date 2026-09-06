@@ -5,6 +5,7 @@
     "dev": "node dev.js",
     "start": "node --env-file-if-exists=.env server.js",
     "seed": "node --env-file-if-exists=.env seed.js",
+    "doublons": "node --env-file-if-exists=.env doublons.js",
     "build": "cd album && npm install && npm run build",
     "cypress": "cypress open",
     "test:e2e": "cypress run"
