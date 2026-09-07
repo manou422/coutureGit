@@ -783,6 +783,38 @@ function nettoyerTitre(valeur) {
 // qu'on y voie quoi que ce soit, comparer les images ne dirait donc rien.
 // La comparaison de MySQL ignore la casse : « Sac » et « sac » se
 // heurtent bien.
+// L'empreinte d'une image. MD5 suffit ici : personne ne cherche à
+// fabriquer deux photos de même empreinte, on veut seulement reconnaître
+// une image déjà reçue. MySQL calcule la même de son côté, sur la valeur
+// stockée — les images ne traversent donc jamais le réseau pour ça.
+function empreinteDe(image) {
+    return crypto.createHash('md5').update(image, 'utf8').digest('hex')
+}
+
+
+// La création déjà enregistrée sous ce titre, s'il y en a une.
+async function creationDeMemeTitre(titre) {
+    const [lignes] = await pool.query(
+        'SELECT id, titre, description FROM creations WHERE titre = ? ORDER BY id LIMIT 1',
+        [titre]
+    )
+    return lignes.length ? lignes[0] : null
+}
+
+
+// Cette création porte-t-elle exactement les photos qu'on reçoit, dans le
+// même ordre ? On compare des empreintes plutôt que les images :
+// quelques octets au lieu de plusieurs mégaoctets.
+async function memesPhotos(creationId, images) {
+    const [rangees] = await pool.query(
+        'SELECT MD5(photo) AS empreinte FROM photos WHERE creationId = ? ORDER BY ordre, id',
+        [creationId]
+    )
+    if (rangees.length !== images.length) return false
+    return rangees.every((photo, i) => photo.empreinte === empreinteDe(images[i]))
+}
+
+
 async function titreDejaPris(titre, sauf = null) {
     const [lignes] = sauf === null
         ? await pool.query('SELECT titre FROM creations WHERE titre = ?', [titre])
@@ -1124,22 +1156,43 @@ app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
     const { description } = req.body
     if (!titre) return res.status(400).json({ erreur: 'Le titre est obligatoire' })
 
-    // Vérifié avant de lire les images : elles pèsent des mégaoctets, il
-    // serait absurde de les décoder pour refuser ensuite.
-    //
-    // On renvoie le titre tel qu'il est en base, et non celui qui vient
-    // d'être saisi : si la différence n'est qu'une casse ou une espace,
-    // autant la montrer plutôt que de laisser deviner.
-    const dejaPris = await titreDejaPris(titre)
-    if (dejaPris) {
-        return res.status(409).json({
-            erreur: `La création « ${dejaPris} » existe déjà. Choisissez un autre titre, ` +
-                    `ou modifiez celle qui porte déjà ce nom.`
-        })
-    }
-
     const images = normaliserImages(req.body)
     if (!images.length) return res.status(400).json({ erreur: 'Au moins une photo est requise' })
+
+    // Une création porte déjà ce titre. Deux situations très différentes
+    // se cachent là, et les confondre enferme dans une impasse.
+    const jumelle = await creationDeMemeTitre(titre)
+    if (jumelle) {
+        // Mêmes photos, dans le même ordre : ce n'est pas une deuxième
+        // création, c'est le même envoi qui recommence.
+        //
+        // Le cas est courant et n'a rien d'une faute. Une photo met une
+        // dizaine de secondes par mégaoctet à monter ; si la connexion
+        // lâche entre l'enregistrement et la réponse, la création est bien
+        // en base mais l'écran annonce un échec. On réessaie alors — et
+        // refuser ici laisserait devant un formulaire rempli, une création
+        // déjà enregistrée, et aucun moyen de s'en sortir.
+        //
+        // On répond donc comme si l'envoi venait d'aboutir : c'est le cas,
+        // simplement pas à cet essai-ci.
+        if (await memesPhotos(jumelle.id, images)) {
+            return res.json({
+                id: jumelle.id, titre: jumelle.titre, description: jumelle.description,
+                nbPhotos: images.length, dejaEnregistree: true
+            })
+        }
+
+        // Photos différentes : deux créations distinctes qui réclament le
+        // même nom. Il faut trancher, et seule Manuela peut le faire.
+        //
+        // On renvoie le titre tel qu'il est en base, et non celui qui vient
+        // d'être saisi : si la différence n'est qu'une casse ou une espace,
+        // autant la montrer plutôt que de laisser deviner.
+        return res.status(409).json({
+            erreur: `La création « ${jumelle.titre} » existe déjà, avec d'autres photos. ` +
+                    `Choisissez un autre titre, ou modifiez celle qui porte déjà ce nom.`
+        })
+    }
 
     const [result] = await pool.query(
         'INSERT INTO creations (titre, description, categorie, photo) VALUES (?, ?, ?, ?)',

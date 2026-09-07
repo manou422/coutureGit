@@ -100,6 +100,46 @@ describe('Créations en double', () => {
         })
     })
 
+    // Le cas qui a cassé la production. Une photo met une dizaine de
+    // secondes par mégaoctet à monter ; quand la connexion lâche entre
+    // l'enregistrement et la réponse, la création est en base mais l'écran
+    // annonce un échec. On réessaie — et la règle « pas deux fois le même
+    // titre » refusait alors le renvoi, laissant devant un formulaire
+    // rempli sans aucun moyen d'aboutir.
+    it('accepte le renvoi d\'un envoi interrompu, sans créer de doublon', function () {
+        const titre = `Essai renvoi ${Date.now()}`
+        const creation = { titre, photos: [IMAGE] }
+
+        cy.request({
+            method: 'POST', url: '/api/photos',
+            headers: { Authorization: `Bearer ${this.jeton}` },
+            body: creation
+        }).then((premier) => {
+            expect(premier.status, 'premier envoi').to.eq(200)
+
+            // Exactement le même envoi, comme le ferait un second clic.
+            cy.request({
+                method: 'POST', url: '/api/photos',
+                headers: { Authorization: `Bearer ${this.jeton}` },
+                body: creation,
+                failOnStatusCode: false
+            }).then((second) => {
+                expect(second.status, 'renvoi accepté').to.eq(200)
+                expect(second.body.id, 'même création').to.eq(premier.body.id)
+                expect(second.body.dejaEnregistree).to.be.true
+            })
+
+            // Et rien n'a été ajouté une seconde fois.
+            cy.request({
+                url: '/api/photos',
+                headers: { Authorization: `Bearer ${this.jeton}` }
+            }).then(({ body }) => {
+                const portant = body.filter(c => c.titre === titre)
+                expect(portant, 'une seule création porte ce titre').to.have.length(1)
+            })
+        })
+    })
+
     // Filet de sécurité. Si un ajout a été accepté alors qu'il aurait dû
     // être refusé, une création traîne dans la base : on la retire.
     //
