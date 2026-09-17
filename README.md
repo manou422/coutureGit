@@ -206,7 +206,6 @@ sécurité, elle, est entièrement du côté serveur.
 |---|---|---|
 | `POST /api/login` | tous | connexion, renvoie le jeton |
 | `POST /api/inscription` | tous | création d'un compte `PA` |
-| `GET /api/inscription/config` | tous | un code d'invitation est-il exigé ? |
 | `POST /api/mot-de-passe-oublie` | tous | envoie le lien de réinitialisation |
 | `POST /api/reinitialiser` | tous | applique le nouveau mot de passe |
 | `GET` `PUT` `DELETE /api/utilisateurs/:id` | soi-même | fiche, modification, suppression |

@@ -75,8 +75,7 @@ module.exports = defineConfig({
         // en dépendent se sautent d'eux-mêmes plutôt que d'échouer.
         env: {
             mail:       env.ADMIN_EMAIL,
-            motDePasse: env.ADMIN_PASSWORD,
-            codeInvitation: env.INVITATION_CODE
+            motDePasse: env.ADMIN_PASSWORD
         }
     }
 })

@@ -2,9 +2,9 @@
       InscriptionView.vue — création d'un compte membre
      ===================================================================
 
-      Le champ « code d'invitation » n'apparaît que si le serveur en
-      réclame un (réglage INVITATION_CODE). Le nouveau compte est de type
-      « PA » : membre invité, sans droit de modification. -->
+      L'inscription est ouverte : toute personne connaissant l'adresse du
+      site peut créer un compte. Le nouveau compte est de type « PA » :
+      membre invité, sans droit de modification. -->
 <template>
     <div class="inscription-page">
         <div class="inscription-card">
@@ -35,12 +35,6 @@
                         </button>
                     </div>
                 </div>
-                <!-- Champ affiché seulement si le serveur exige un code. -->
-                <div v-if="codeRequis" class="champ">
-                    <label>Code d'invitation</label>
-                    <input v-model="codeInvitation" type="text" placeholder="Code reçu avec le lien" required />
-                    <p class="aide">Ce code vous a été communiqué par Manuela avec l'adresse du site.</p>
-                </div>
                 <p v-if="erreur" class="erreur">{{ erreur }}</p>
                 <p v-if="succes" class="succes">{{ succes }}</p>
                 <button type="submit" :disabled="chargement">
@@ -53,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import IconeOeil from '../components/IconeOeil.vue'
 
@@ -67,20 +61,6 @@ const erreur     = ref('')
 const succes     = ref('')
 const chargement = ref(false)
 const voirMdp    = ref(false)
-const codeInvitation = ref('')
-const codeRequis     = ref(false)
-
-// À l'ouverture, on demande au serveur si un code est exigé, pour
-// afficher ou non le champ.
-onMounted(async () => {
-    try {
-        const res = await fetch('/api/inscription/config')
-        codeRequis.value = (await res.json()).codeRequis
-    } catch {
-        // Serveur injoignable : le champ reste masqué, l'inscription
-        // échouera de toute façon et affichera l'erreur.
-    }
-})
 
 
 // Vérifie la concordance des deux adresses, envoie l'inscription, puis
@@ -95,13 +75,12 @@ async function sInscrire() {
     chargement.value = true
 
     // Chaque champ du formulaire est une `ref` : on lit sa `.value` une
-    // fois ici, plutôt que cinq fois dans le corps de la requête.
+    // fois ici, plutôt que quatre fois dans le corps de la requête.
     const inscription = {
-        nom:            nom.value,
-        prenom:         prenom.value,
-        mail:           mail.value,
-        motDePasse:     motDePasse.value,
-        codeInvitation: codeInvitation.value
+        nom:        nom.value,
+        prenom:     prenom.value,
+        mail:       mail.value,
+        motDePasse: motDePasse.value
     }
 
     try {
@@ -217,11 +196,6 @@ button:disabled { background-color: #aaa; cursor: default; }
     color: #e53e3e;
     font-size: 0.9rem;
     text-align: center;
-}
-.aide {
-    color: #888;
-    font-size: 0.78rem;
-    margin-top: 2px;
 }
 .succes {
     color: #38a169;
