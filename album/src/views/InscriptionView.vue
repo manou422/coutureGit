@@ -23,10 +23,6 @@
                     <input v-model="mail" type="email" placeholder="votre@email.com" required />
                 </div>
                 <div class="champ">
-                    <label>Confirmation email</label>
-                    <input v-model="mailConfirm" type="email" placeholder="votre@email.com" required />
-                </div>
-                <div class="champ">
                     <label>Mot de passe</label>
                     <div class="input-oeil">
                         <input v-model="motDePasse" :type="voirMdp ? 'text' : 'password'" placeholder="••••••••" required />
@@ -55,7 +51,6 @@ const router     = useRouter()
 const nom        = ref('')
 const prenom     = ref('')
 const mail       = ref('')
-const mailConfirm = ref('')
 const motDePasse = ref('')
 const erreur     = ref('')
 const succes     = ref('')
@@ -63,15 +58,10 @@ const chargement = ref(false)
 const voirMdp    = ref(false)
 
 
-// Vérifie la concordance des deux adresses, envoie l'inscription, puis
-// renvoie vers la connexion.
+// Envoie l'inscription, puis renvoie vers la connexion.
 async function sInscrire() {
     erreur.value = ''
     succes.value = ''
-    if (mail.value !== mailConfirm.value) {
-        erreur.value = 'Les adresses email ne correspondent pas'
-        return
-    }
     chargement.value = true
 
     // Chaque champ du formulaire est une `ref` : on lit sa `.value` une
