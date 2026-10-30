@@ -127,6 +127,11 @@
             </div>
         </div>
 
+        <!-- Sous les catégories, et hors du groupe « Galerie » : les projets
+             en cours ne sont pas une catégorie de plus, mais l'autre versant
+             de l'album — ce qui se fait, à côté de ce qui est fini. -->
+        <RouterLink to="/projets">Projets en cours</RouterLink>
+
         <!-- Réservé à l'administratrice. Cacher un lien n'est qu'un confort :
              c'est le serveur qui refuse pour de bon (voir adminSeulement). -->
         <RouterLink v-if="estAdmin" to="/ajouter">Ajouter</RouterLink>

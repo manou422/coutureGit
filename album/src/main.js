@@ -19,6 +19,7 @@ import { assurerSynchro } from './stores/auth.js'
 import HomeView from './views/HomeView.vue'
 import GalerieView from './views/GalerieView.vue'
 import CategoriesView from './views/CategoriesView.vue'
+import ProjetsView from './views/ProjetsView.vue'
 import StatistiquesView from './views/StatistiquesView.vue'
 import DescriptionView from './views/DescriptionView.vue'
 import AjouterView from './views/AjouterView.vue'
@@ -52,6 +53,7 @@ const router = createRouter({
         { path: '/',                component: HomeView,        meta: { requiresAuth: true } },
         { path: '/galerie',         component: GalerieView,     meta: { requiresAuth: true } },
         { path: '/categories',      component: CategoriesView,  meta: { requiresAuth: true } },
+        { path: '/projets',         component: ProjetsView,     meta: { requiresAuth: true } },
         { path: '/statistiques',    component: StatistiquesView, meta: { requiresAuth: true, adminOnly: true } },
         { path: '/description/:id', component: DescriptionView, meta: { requiresAuth: true } },
         { path: '/ajouter',         component: AjouterView,     meta: { requiresAuth: true, adminOnly: true } },

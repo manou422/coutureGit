@@ -32,6 +32,18 @@
                 </p>
             </div>
 
+            <!-- Au même endroit que dans le formulaire d'ajout. Décocher une
+                 création la fait rejoindre la galerie ; cocher la renvoie
+                 parmi les projets en cours. -->
+            <div class="champ">
+                <label class="case">
+                    <input v-model="enCours" type="checkbox" />
+                    Projet en cours — la création s'affichera sur la page
+                    « Projets en cours », et non dans la galerie, jusqu'à ce
+                    que vous la déclariez terminée.
+                </label>
+            </div>
+
             <div class="champ">
                 <label>Description</label>
                 <textarea v-model="description" rows="4"></textarea>
@@ -88,6 +100,7 @@ const photo       = ref(null)
 const titre       = ref('')
 const description = ref('')
 const categorie   = ref('')
+const enCours     = ref(false)
 const succes      = ref(false)
 const erreur      = ref('')
 const chargementPhotos = ref(false)
@@ -117,6 +130,7 @@ onMounted(async () => {
     titre.value       = photo.value.titre
     description.value = photo.value.description
     categorie.value   = photo.value.categorie || ''
+    enCours.value     = !!photo.value.enCours
 
     elements.value = photo.value.images.map(img => ({
         cle: `existante-${img.id}`, existanteId: img.id, url: null
@@ -183,7 +197,7 @@ async function sauvegarder() {
         method: 'PUT',
         body:   JSON.stringify({
             titre: titre.value, description: description.value,
-            categorie: categorie.value, photos
+            categorie: categorie.value, enCours: enCours.value, photos
         })
     })
     if (!res.ok) {
@@ -192,7 +206,9 @@ async function sauvegarder() {
         return
     }
     succes.value = true
-    setTimeout(() => router.push('/galerie'), 1200)
+    // On ramène là où la création se trouve désormais : après l'avoir
+    // déclarée en cours, la galerie ne la montrerait plus.
+    setTimeout(() => router.push(enCours.value ? '/projets' : '/galerie'), 1200)
 }
 </script>
 
@@ -226,6 +242,18 @@ h1 { margin-bottom: 32px; color: #333; font-size: 1.6rem; }
 .champ { display: flex; flex-direction: column; gap: 6px; }
 label { font-weight: 600; color: #444; font-size: 0.9rem; }
 .optionnel { font-weight: 400; color: #999; font-size: 0.8rem; }
+/* L'étiquette entoure la case : tout le libellé est donc cliquable. */
+.case {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.45;
+    cursor: pointer;
+}
+.case input { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
 .avertissement {
     font-size: 0.82rem;
     color: #6b3fa0;

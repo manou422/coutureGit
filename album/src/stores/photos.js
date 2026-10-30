@@ -24,6 +24,18 @@ export async function chargerPhotos(categorie = null) {
 }
 
 
+// Les projets en cours, pour la page qui leur est réservée. Le serveur les
+// tient à l'écart de la galerie : les deux listes ne se recoupent jamais.
+//
+// Elles partagent en revanche la même `photos` ci-dessus — les deux pages
+// ne s'affichant jamais ensemble, et PhotoCard pouvant ainsi y supprimer
+// une création comme partout ailleurs.
+export async function chargerProjets() {
+    const res = await api('/api/photos?enCours=1')
+    if (res.ok) photos.value = await res.json()
+}
+
+
 // Envoie une nouvelle création. En cas de refus, on relève le message
 // du serveur dans une erreur, que le formulaire attrape et affiche.
 export async function ajouterPhoto(creation) {

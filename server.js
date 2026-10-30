@@ -400,6 +400,11 @@ async function preparerLaBase() {
 
     await ajouterColonneSiAbsente('creations', 'categorie', 'VARCHAR(100) NULL')
     await ajouterColonneSiAbsente('categories', 'visible', 'TINYINT(1) NOT NULL DEFAULT 1')
+    // `enCours` = 1 range la création parmi les projets en cours : elle
+    // quitte la galerie et n'apparaît plus que sur /projets. Les créations
+    // d'avant cette colonne valent 0, soit « terminée » — c'est bien ce
+    // qu'elles sont, l'album n'ayant contenu que du fini jusqu'ici.
+    await ajouterColonneSiAbsente('creations', 'enCours', 'TINYINT(1) NOT NULL DEFAULT 0')
 
     await reprendreLesCategoriesDejaEmployees()
     await reprendreLesPhotosDesAnciennesCreations()
@@ -736,6 +741,13 @@ function nettoyerCategorie(valeur) {
 }
 
 
+// Le drapeau « projet en cours ». Le site envoie un booléen, MySQL
+// stocke 0 ou 1.
+function lireEnCours(corps) {
+    return corps.enCours ? 1 : 0
+}
+
+
 // Même travail pour le titre d'une création, à la longueur de sa colonne.
 //
 // C'est cette forme nettoyée qui sert à reconnaître un doublon : sans le
@@ -907,6 +919,11 @@ app.get('/api/photos', authentifier, async (req, res) => {
         valeurs.push(categorieDemandee)
     }
 
+    // `?enCours=1` ne renvoie que les projets en cours ; sans ce paramètre,
+    // la galerie ne montre que les créations terminées. Les deux listes
+    // sont donc disjointes : une création est à un endroit, jamais aux deux.
+    conditions.push(req.query.enCours === '1' ? 'c.enCours = 1' : 'c.enCours = 0')
+
     // Une catégorie masquée demandée explicitement — adresse devinée, page
     // gardée en favori — ne renvoie rien de plus que la galerie complète.
     if (req.utilisateur.type !== 'admin') conditions.push(CONDITION_VISIBLE)
@@ -914,28 +931,38 @@ app.get('/api/photos', authentifier, async (req, res) => {
     const filtres = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
     const [lignes] = await pool.query(`
-        SELECT c.id, c.titre, c.description, c.categorie, COUNT(p.id) AS nbPhotos
+        SELECT c.id, c.titre, c.description, c.categorie, c.enCours, COUNT(p.id) AS nbPhotos
         FROM creations c
         LEFT JOIN photos p ON p.creationId = c.id
         ${JOINTURE_VISIBILITE}
         ${filtres}
-        GROUP BY c.id, c.titre, c.description, c.categorie
+        GROUP BY c.id, c.titre, c.description, c.categorie, c.enCours
         ORDER BY c.id
     `, valeurs)
 
     // Le COUNT revient en chaîne de caractères : on le reconvertit en
-    // nombre avant de l'envoyer au site.
-    res.json(lignes.map(ligne => ({ ...ligne, nbPhotos: Number(ligne.nbPhotos) })))
+    // nombre avant de l'envoyer au site. `enCours` arrive en 0/1 et repart
+    // en booléen, plus commode à lire côté Vue.
+    res.json(lignes.map(ligne => ({
+        ...ligne,
+        nbPhotos: Number(ligne.nbPhotos),
+        enCours:  !!ligne.enCours
+    })))
 })
 
 // Catégories déclarées, avec le nombre de créations de chacune. Une
 // catégorie encore vide apparaît donc, avec un compte à zéro. Les
 // catégories masquées ne sortent que pour l'administratrice.
 app.get('/api/categories', authentifier, async (req, res) => {
+    // Les projets en cours sont décomptés : ils ne s'affichent pas dans la
+    // galerie, et les faire compter ici annoncerait « 3 créations » sur une
+    // catégorie qui n'en montre que deux. La condition est portée par le
+    // JOIN et non par un WHERE, sans quoi une catégorie dont tout est en
+    // cours disparaîtrait de la liste au lieu d'afficher zéro.
     const [rows] = await pool.query(`
         SELECT cat.id, cat.nom, cat.visible, COUNT(c.id) AS nombre
         FROM categories cat
-        LEFT JOIN creations c ON c.categorie = cat.nom
+        LEFT JOIN creations c ON c.categorie = cat.nom AND c.enCours = 0
         ${req.utilisateur.type === 'admin' ? '' : 'WHERE cat.visible = 1'}
         GROUP BY cat.id, cat.nom, cat.visible
         ORDER BY cat.nom
@@ -944,7 +971,7 @@ app.get('/api/categories', authentifier, async (req, res) => {
     // fait par catégorie, et « non classées » n'en est pas une.
     const [sans] = await pool.query(`
         SELECT COUNT(*) AS nombre FROM creations
-        WHERE categorie IS NULL OR categorie = ''
+        WHERE (categorie IS NULL OR categorie = '') AND enCours = 0
     `)
     res.json({
         categories: rows.map(r => ({
@@ -1105,7 +1132,7 @@ app.get('/api/photos/:id/image', authentifier, async (req, res) => {
 // séparément par la page.
 app.get('/api/photos/:id', authentifier, async (req, res) => {
     const [rows] = await pool.query(`
-        SELECT c.id, c.titre, c.description, c.categorie
+        SELECT c.id, c.titre, c.description, c.categorie, c.enCours
         FROM creations c
         ${JOINTURE_VISIBILITE}
         WHERE c.id = ?
@@ -1117,7 +1144,7 @@ app.get('/api/photos/:id', authentifier, async (req, res) => {
         'SELECT id, ordre FROM photos WHERE creationId = ? ORDER BY ordre, id',
         [req.params.id]
     )
-    res.json({ ...rows[0], images })
+    res.json({ ...rows[0], enCours: !!rows[0].enCours, images })
 })
 
 
@@ -1167,15 +1194,20 @@ app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
         })
     }
 
+    const enCours = lireEnCours(req.body)
+
     const [result] = await pool.query(
-        'INSERT INTO creations (titre, description, categorie, photo) VALUES (?, ?, ?, ?)',
-        [titre, description || '', nettoyerCategorie(req.body.categorie), images[0]]
+        'INSERT INTO creations (titre, description, categorie, enCours, photo) VALUES (?, ?, ?, ?, ?)',
+        [titre, description || '', nettoyerCategorie(req.body.categorie), enCours, images[0]]
     )
     // Une ligne par photo ; `i` devient son rang (0 = couverture).
     for (const [i, img] of images.entries()) {
         await pool.query('INSERT INTO photos (creationId, ordre, photo) VALUES (?, ?, ?)', [result.insertId, i, img])
     }
-    res.json({ id: result.insertId, titre, description, nbPhotos: images.length })
+    res.json({
+        id: result.insertId, titre, description,
+        nbPhotos: images.length, enCours: !!enCours
+    })
 })
 
 
@@ -1260,9 +1292,19 @@ app.put('/api/photos/:id', authentifier, adminSeulement, async (req, res) => {
         }
     }
 
+    // `enCours` absent du corps : la création garde l'état qu'elle a. Sans
+    // cette précaution, une requête qui ne parlerait que du titre ferait
+    // repasser un projet en cours parmi les créations terminées, en
+    // silence — c'est le même raisonnement que pour les photos, un peu
+    // plus bas.
+    const changeEnCours = req.body.enCours !== undefined
+    const colonneEnCours = changeEnCours ? ', enCours = ?' : ''
+    const valeurEnCours  = changeEnCours ? [lireEnCours(req.body)] : []
+
     await pool.query(
-        'UPDATE creations SET titre = ?, description = ?, categorie = ? WHERE id = ?',
-        [titre, description || '', nettoyerCategorie(req.body.categorie), creationId]
+        `UPDATE creations SET titre = ?, description = ?, categorie = ?${colonneEnCours} WHERE id = ?`,
+        [titre, description || '', nettoyerCategorie(req.body.categorie),
+         ...valeurEnCours, creationId]
     )
 
     // `photos` absent du corps : seuls le titre et la description changent,

@@ -36,6 +36,18 @@
                 <p class="poids">Choisissez une catégorie existante ou tapez-en une nouvelle.</p>
             </div>
 
+            <!-- Cochée, la création part sur la page « Projets en cours » au
+                 lieu de la galerie. Elle y reste jusqu'à ce que la case soit
+                 décochée depuis « Modifier ». -->
+            <div class="champ">
+                <label class="case">
+                    <input v-model="enCours" type="checkbox" />
+                    Projet en cours — la création s'affichera sur la page
+                    « Projets en cours », et non dans la galerie, jusqu'à ce
+                    que vous la déclariez terminée.
+                </label>
+            </div>
+
             <div class="champ">
                 <label>Description</label>
                 <textarea v-model="description" placeholder="Décrivez votre création..." rows="4"></textarea>
@@ -84,6 +96,7 @@ const router      = useRouter()
 const titre       = ref('')
 const description = ref('')
 const categorie   = ref('')
+const enCours     = ref(false)
 // L'état du formulaire. Chaque `ref` est une case mémoire surveillée :
 // modifier sa `.value` redessine la partie de l'écran qui l'utilise.
 // `photos` contient les images déjà réduites, prêtes à partir.
@@ -142,14 +155,19 @@ async function soumettre() {
             photos:      photos.value,
             titre:       titre.value,
             description: description.value,
-            categorie:   categorie.value
+            categorie:   categorie.value,
+            enCours:     enCours.value
         })
     } catch (e) {
         erreur.value = e.message
         return
     }
     succes.value = true
-    setTimeout(() => router.push('/galerie'), 1200)
+    // On ramene a la page ou la creation vient d'atterrir : la galerie ne
+    // montre pas les projets en cours, et y renvoyer donnerait a croire
+    // que l'ajout n'a rien fait.
+    const destination = enCours.value ? '/projets' : '/galerie'
+    setTimeout(() => router.push(destination), 1200)
 }
 </script>
 
@@ -249,6 +267,19 @@ button:disabled { background-color: #aaa; cursor: default; }
     color: #999;
     font-size: 0.8rem;
 }
+/* La case a cocher et son explication, sur une seule ligne logique : le
+   libelle entier est cliquable, l'etiquette entourant la case. */
+.case {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.45;
+    cursor: pointer;
+}
+.case input { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
 .avertissement {
     font-size: 0.82rem;
     color: #6b3fa0;

@@ -98,6 +98,7 @@ s'affiche), `script` (le code qui le pilote), `style` (l'apparence).
         └── views/         un fichier par écran
             ├── HomeView.vue           accueil
             ├── GalerieView.vue        la grille des créations
+            ├── ProjetsView.vue        les projets en cours
             ├── DescriptionView.vue    le détail d'une création
             ├── AjouterView.vue        ajouter          (admin)
             ├── ModifierView.vue       modifier         (admin)
@@ -209,7 +210,8 @@ sécurité, elle, est entièrement du côté serveur.
 | `POST /api/mot-de-passe-oublie` | tous | envoie le lien de réinitialisation |
 | `POST /api/reinitialiser` | tous | applique le nouveau mot de passe |
 | `GET` `PUT` `DELETE /api/utilisateurs/:id` | soi-même | fiche, modification, suppression |
-| `GET /api/photos` | connecté | la liste, sans les images |
+| `GET /api/photos` | connecté | la liste des créations terminées, sans les images |
+| `GET /api/photos?enCours=1` | connecté | la liste des projets en cours |
 | `GET /api/photos/:id` | connecté | une création et les id de ses photos |
 | `GET /api/photos/:id/image` | connecté | l'image de couverture |
 | `GET /api/images/:imageId` | connecté | une photo précise |
@@ -232,8 +234,10 @@ utilisateurs             creations                photos
 ├ nom, prenom            ├ titre                  ├ creationId
 ├ type    admin | PA     ├ description            ├ ordre
 ├ mail    unique         ├ categorie              └ photo
-├ Mdp     haché bcrypt   └ photo   (la couverture,
-└ nombreConnexion                   recopiée ici)
+├ Mdp     haché bcrypt   ├ enCours  1 = projet
+└ nombreConnexion        │          en cours
+                         └ photo   (la couverture,
+                                    recopiée ici)
 
 connexions               categories
 ├ id                     ├ id
