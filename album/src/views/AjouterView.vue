@@ -54,7 +54,12 @@
             </div>
 
             <div class="champ">
-                <label>Photos <span class="optionnel">(plusieurs possibles, 12 au maximum)</span></label>
+                <label>Photos
+                    <span class="optionnel">
+                        {{ enCours ? '(facultatives pour un projet en cours)'
+                                   : '(plusieurs possibles, 12 au maximum)' }}
+                    </span>
+                </label>
                 <!-- `multiple` autorise plusieurs fichiers d'un coup ; `accept` filtre sur les images. -->
                 <input type="file" accept="image/*" multiple @change="chargerFichiers" />
 
@@ -75,8 +80,16 @@
                 </p>
             </div>
 
-            <!-- Bouton inactif tant qu'il manque une photo ou qu'une optimisation est en cours. -->
-            <button type="submit" :disabled="!photos.length || chargementPhotos">Ajouter</button>
+            <!-- Un projet en cours s'enregistre sans photo ; une création
+                 terminée en réclame une. Le serveur applique la même règle,
+                 c'est lui qui tranche. -->
+            <button type="submit" :disabled="(!photos.length && !enCours) || chargementPhotos">
+                Ajouter
+            </button>
+            <p v-if="!photos.length && enCours" class="poids">
+                Vous pourrez ajouter les photos plus tard, en modifiant le projet.
+                Une photo sera demandée au moment de le déclarer terminé.
+            </p>
             <p v-if="erreur" class="erreur">{{ erreur }}</p>
             <p v-if="succes" class="succes">Création ajoutée avec succès !</p>
         </form>

@@ -132,6 +132,10 @@
              de l'album — ce qui se fait, à côté de ce qui est fini. -->
         <RouterLink to="/projets">Projets en cours</RouterLink>
 
+        <!-- D'où viennent les modèles : livres, magazines, sites, et le
+             nombre de projets tirés de chacun. -->
+        <RouterLink to="/supports">Supports utilisés</RouterLink>
+
         <!-- Réservé à l'administratrice. Cacher un lien n'est qu'un confort :
              c'est le serveur qui refuse pour de bon (voir adminSeulement). -->
         <RouterLink v-if="estAdmin" to="/ajouter">Ajouter</RouterLink>

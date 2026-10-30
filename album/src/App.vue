@@ -46,7 +46,7 @@ const estPageAuth = (chemin) =>
 // n'arrive pas depuis un autre : accueil, galerie, ajout.
 // Écrans où l'on n'arrive pas depuis un autre : un bouton retour n'y
 // aurait aucun sens.
-const pagesSansRetour = ['/', '/galerie', '/projets', '/ajouter']
+const pagesSansRetour = ['/', '/galerie', '/projets', '/supports', '/ajouter']
 
 const afficherNav = computed(() => !estPageAuth(route.path))
 

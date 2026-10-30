@@ -65,13 +65,17 @@
                                 @click="promouvoir(i)">↑</button>
                     </div>
                 </div>
-                <p v-else class="poids">Aucune photo. Ajoutez-en au moins une.</p>
+                <p v-else class="poids">{{ messagePhotos }}</p>
 
                 <input type="file" accept="image/*" multiple @change="ajouterFichiers" class="fichier" />
                 <p v-if="chargementPhotos" class="poids">Optimisation en cours...</p>
             </div>
 
-            <button type="submit" :disabled="!elements.length || chargementPhotos">Enregistrer</button>
+            <!-- Un projet en cours s'enregistre sans photo ; décocher la case
+                 en réclame une. Le serveur applique la même règle. -->
+            <button type="submit" :disabled="(!elements.length && !enCours) || chargementPhotos">
+                Enregistrer
+            </button>
             <p v-if="erreur" class="erreur">{{ erreur }}</p>
             <p v-if="succes" class="succes">Modifications enregistrées !</p>
         </form>
@@ -109,6 +113,14 @@ const chargementPhotos = ref(false)
 // vaut le dire au moment du choix qu'après coup.
 const categorieMasquee = computed(() =>
     categories.value.some(c => c.nom === categorie.value.trim() && !c.visible))
+
+// Ce qu'on dit quand la création n'a aucune photo. Le texte vit ici et
+// non dans le template : une apostrophe dans une interpolation Vue
+// casse la compilation.
+const messagePhotos = computed(() => enCours.value
+    ? 'Aucune photo pour l\'instant. Un projet en cours peut rester sans photo ;'
+      + ' une sera demandée pour le déclarer terminé.'
+    : 'Aucune photo. Ajoutez-en au moins une.')
 
 // La liste affichée, dans son ordre actuel. Chaque élément est soit une
 // photo déjà en base (on garde son id, sans la retéléverser), soit une

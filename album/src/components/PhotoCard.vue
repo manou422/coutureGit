@@ -11,8 +11,22 @@
     <RouterLink :to="`/description/${photo.id}`" class="carte">
         <div class="img-wrapper">
             <!-- Tant que l'image n'est pas chargée, on affiche à la place un
-                 rectangle gris animé : la grille garde sa forme au lieu de sursauter. -->
+                 rectangle gris animé : la grille garde sa forme au lieu de sursauter.
+
+                 Un projet en cours peut n'avoir encore aucune photo. Le
+                 rectangle d'attente ne conviendrait pas : il s'animerait
+                 sans fin pour une image qui ne viendra pas. On montre donc
+                 un cadre explicite, et on n'appelle même pas le serveur. -->
             <img v-if="src" :src="src" :alt="photo.titre" />
+            <div v-else-if="sansPhoto" class="sans-photo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                </svg>
+                <span>Pas encore de photo</span>
+            </div>
             <div v-else class="attente" aria-label="Chargement de la photo"></div>
             <!-- Pastille « 3 photos », uniquement quand il y en a plusieurs. -->
             <span v-if="photo.nbPhotos > 1" class="compteur">
@@ -40,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supprimerPhoto } from '../stores/photos.js'
 import { estAdmin, urlImage } from '../stores/auth.js'
 
@@ -49,8 +63,16 @@ import { estAdmin, urlImage } from '../stores/auth.js'
 const props = defineProps({ photo: Object })
 
 const src = ref(null)  // adresse locale de l'image, null tant qu'elle charge
+
+// `nbPhotos` vient avec la liste : on sait donc avant toute requête qu'il
+// n'y a rien à charger, et on s'épargne un aller-retour qui finirait en 404.
+const sansPhoto = computed(() => props.photo.nbPhotos === 0)
+
 // À l'affichage, on demande l'image ; elle arrivera un peu après.
-onMounted(async () => { src.value = await urlImage(props.photo.id) })
+onMounted(async () => {
+    if (sansPhoto.value) return
+    src.value = await urlImage(props.photo.id)
+})
 // En quittant la page, on libère l'adresse locale : sans cela, l'image
 // resterait en mémoire pour rien.
 onUnmounted(() => { if (src.value) URL.revokeObjectURL(src.value) })
@@ -130,6 +152,23 @@ async function supprimer() {
     background-size: 200% 100%;
     animation: glisse 1.2s ease-in-out infinite;
 }
+/* Le cadre d'une creation sans photo. Fixe et sobre : il annonce un
+   manque assume, la ou le rectangle anime annonce une attente. */
+.sans-photo {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    background: #f4efec;
+    border: 1px dashed #d9c9c4;
+    color: #a98c86;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.8rem;
+}
+.sans-photo svg { width: 30px; height: 30px; }
 @keyframes glisse {
     from { background-position: 200% 0; }
     to   { background-position: -200% 0; }

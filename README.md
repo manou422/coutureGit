@@ -99,6 +99,7 @@ s'affiche), `script` (le code qui le pilote), `style` (l'apparence).
             ├── HomeView.vue           accueil
             ├── GalerieView.vue        la grille des créations
             ├── ProjetsView.vue        les projets en cours
+            ├── SupportsView.vue       les supports utilises
             ├── DescriptionView.vue    le détail d'une création
             ├── AjouterView.vue        ajouter          (admin)
             ├── ModifierView.vue       modifier         (admin)
@@ -217,6 +218,8 @@ sécurité, elle, est entièrement du côté serveur.
 | `GET /api/images/:imageId` | connecté | une photo précise |
 | `POST` `PUT` `DELETE /api/photos` | admin | ajouter, modifier, supprimer |
 | `GET /api/categories` | connecté | la liste, avec les compteurs |
+| `GET /api/supports` | connecté | les supports et leurs compteurs |
+| `POST` `PUT` `DELETE /api/supports` | admin | ajouter, modifier, supprimer |
 | `POST` `PUT` `DELETE /api/categories` | admin | créer, renommer, supprimer |
 | `PATCH /api/categories/:id/visibilite` | admin | masquer / rendre visible |
 | `GET /api/statistiques` | admin | la page Fréquentation |
@@ -245,6 +248,13 @@ connexions               categories
 └ jour                   └ visible  0 = masquée aux membres
   unique(utilisateurId, jour)
 
+supports
+├ id
+├ nom
+├ type     livre | magazine | site
+├ lien     sites seulement, NULL ailleurs
+└ nombre   projets réalisés — saisi à la main
+
 
 Les liens
 
@@ -254,6 +264,10 @@ Les liens
 
   creations.categorie      ┈┈▶ categories.nom    par le libellé,
                                                  sans clé étrangère
+
+  supports                      (rien)           aucun lien : le nombre
+                                                 de projets est saisi,
+                                                 pas compté
 ```
 
 Deux choses à savoir :

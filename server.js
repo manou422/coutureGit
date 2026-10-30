@@ -306,6 +306,24 @@ async function creerLesTables() {
                 REFERENCES creations(id) ON DELETE CASCADE
         )
     `)
+
+    // Les supports d'où viennent les modèles : un livre, un magazine, un
+    // site. `nombre` dit combien de projets en ont été tirés — une valeur
+    // saisie à la main, et non comptée depuis `creations` : rien ne relie
+    // une création à son support, et un même ouvrage peut avoir servi
+    // avant que l'album n'existe.
+    //
+    // `lien` ne sert qu'aux sites, où un nom sans adresse ne mène à rien.
+    // Il reste NULL pour un livre ou un magazine.
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS supports (
+            id     INT AUTO_INCREMENT PRIMARY KEY,
+            nom    VARCHAR(255) NOT NULL,
+            type   VARCHAR(20) NOT NULL DEFAULT 'livre',
+            lien   VARCHAR(500) NULL,
+            nombre INT NOT NULL DEFAULT 0
+        )
+    `)
 }
 
 
@@ -800,6 +818,15 @@ async function memesPhotos(creationId, images) {
 }
 
 
+// Combien de photos porte une création. Sert à savoir si elle a de quoi
+// être déclarée terminée, sans faire remonter les images elles-mêmes.
+async function compterLesPhotos(creationId) {
+    const [lignes] = await pool.query(
+        'SELECT COUNT(*) AS nombre FROM photos WHERE creationId = ?', [creationId])
+    return Number(lignes[0].nombre)
+}
+
+
 async function titreDejaPris(titre, sauf = null) {
     const [lignes] = sauf === null
         ? await pool.query('SELECT titre FROM creations WHERE titre = ?', [titre])
@@ -1051,6 +1078,129 @@ app.delete('/api/categories/:id', authentifier, adminSeulement, async (req, res)
 })
 
 /* ------------------------------------------------------------------ *
+ *  Supports utilisés — livres, magazines, sites
+ * ------------------------------------------------------------------ */
+
+// Les trois seuls types admis. La liste est contrôlée ici et pas
+// seulement dans le formulaire : un type inventé rendrait la page
+// incapable de ranger la ligne.
+const TYPES_SUPPORT = ['livre', 'magazine', 'site']
+
+function nettoyerNomSupport(valeur) {
+    if (typeof valeur !== 'string') return null
+    const propre = valeur.trim().slice(0, 255)
+    return propre.length ? propre : null
+}
+
+function nettoyerTypeSupport(valeur) {
+    return TYPES_SUPPORT.includes(valeur) ? valeur : null
+}
+
+// Le nombre de projets tirés du support. Négatif ou non numérique vaut
+// zéro ; le plafond évite qu'une faute de frappe inscrive un million.
+function nettoyerNombreProjets(valeur) {
+    const n = Number.parseInt(valeur, 10)
+    if (!Number.isFinite(n) || n < 0) return 0
+    return Math.min(n, 9999)
+}
+
+// Le lien n'a de sens que pour un site : pour un livre ou un magazine on
+// le laisse tomber plutôt que de garder une adresse qui ne sera jamais
+// montrée. On n'accepte que http(s) — un `javascript:` recopié dans un
+// href s'exécuterait au clic.
+function nettoyerLienSupport(valeur, type) {
+    if (type !== 'site' || typeof valeur !== 'string') return null
+    const propre = valeur.trim().slice(0, 500)
+    if (!propre.length) return null
+    return /^https?:\/\//i.test(propre) ? propre : null
+}
+
+
+// LISTE des supports, pour tout membre connecté. Les plus utilisés
+// d'abord : c'est l'ordre qui renseigne le plus sur un tel inventaire.
+app.get('/api/supports', authentifier, async (req, res) => {
+    const [lignes] = await pool.query(`
+        SELECT id, nom, type, lien, nombre FROM supports
+        ORDER BY nombre DESC, nom
+    `)
+    res.json(lignes.map(l => ({ ...l, nombre: Number(l.nombre) })))
+})
+
+
+// AJOUT d'un support (réservé à l'administratrice).
+app.post('/api/supports', authentifier, adminSeulement, async (req, res) => {
+    const nom  = nettoyerNomSupport(req.body.nom)
+    const type = nettoyerTypeSupport(req.body.type)
+    if (!nom)  return res.status(400).json({ erreur: 'Le nom est obligatoire' })
+    if (!type) {
+        return res.status(400).json({
+            erreur: `Le type doit être « ${TYPES_SUPPORT.join(' », « ')} »`
+        })
+    }
+
+    const nombre = nettoyerNombreProjets(req.body.nombre)
+    const lien   = nettoyerLienSupport(req.body.lien, type)
+
+    // Deux supports de même nom ET de même type sont forcément le même :
+    // on refuse. Le même titre sous deux types reste possible — un
+    // magazine et un livre peuvent se nommer pareil.
+    const [existe] = await pool.query(
+        'SELECT nom FROM supports WHERE nom = ? AND type = ?', [nom, type])
+    if (existe.length) {
+        return res.status(409).json({ erreur: `« ${existe[0].nom} » est déjà dans la liste` })
+    }
+
+    const [r] = await pool.query(
+        'INSERT INTO supports (nom, type, lien, nombre) VALUES (?, ?, ?, ?)',
+        [nom, type, lien, nombre]
+    )
+    res.json({ id: r.insertId, nom, type, lien, nombre })
+})
+
+
+// MODIFICATION d'un support : son nom, son type, son lien, son compte.
+app.put('/api/supports/:id', authentifier, adminSeulement, async (req, res) => {
+    const nom  = nettoyerNomSupport(req.body.nom)
+    const type = nettoyerTypeSupport(req.body.type)
+    if (!nom)  return res.status(400).json({ erreur: 'Le nom est obligatoire' })
+    if (!type) {
+        return res.status(400).json({
+            erreur: `Le type doit être « ${TYPES_SUPPORT.join(' », « ')} »`
+        })
+    }
+
+    const [actuel] = await pool.query('SELECT id FROM supports WHERE id = ?', [req.params.id])
+    if (!actuel.length) return res.status(404).json({ erreur: 'Support introuvable' })
+
+    const [collision] = await pool.query(
+        'SELECT id FROM supports WHERE nom = ? AND type = ? AND id <> ?',
+        [nom, type, req.params.id])
+    if (collision.length) {
+        return res.status(409).json({ erreur: 'Un autre support porte déjà ce nom, du même type' })
+    }
+
+    const nombre = nettoyerNombreProjets(req.body.nombre)
+    const lien   = nettoyerLienSupport(req.body.lien, type)
+
+    await pool.query(
+        'UPDATE supports SET nom = ?, type = ?, lien = ?, nombre = ? WHERE id = ?',
+        [nom, type, lien, nombre, req.params.id]
+    )
+    res.json({ id: Number(req.params.id), nom, type, lien, nombre })
+})
+
+
+// SUPPRESSION d'un support. Rien ne s'y rattache en base : aucune
+// création n'est touchée.
+app.delete('/api/supports/:id', authentifier, adminSeulement, async (req, res) => {
+    const [actuel] = await pool.query('SELECT id FROM supports WHERE id = ?', [req.params.id])
+    if (!actuel.length) return res.status(404).json({ erreur: 'Support introuvable' })
+
+    await pool.query('DELETE FROM supports WHERE id = ?', [req.params.id])
+    res.json({ success: true })
+})
+
+/* ------------------------------------------------------------------ *
  *  Statistiques de fréquentation — réservées à l'administrateur
  * ------------------------------------------------------------------ */
 
@@ -1156,8 +1306,15 @@ app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
     const { description } = req.body
     if (!titre) return res.status(400).json({ erreur: 'Le titre est obligatoire' })
 
+    const enCours = lireEnCours(req.body)
+
+    // Un projet en cours peut n'avoir encore aucune photo — c'est souvent
+    // ce qui le définit : le tissu est choisi, rien n'est cousu. Une
+    // création terminée, elle, doit en montrer au moins une.
     const images = normaliserImages(req.body)
-    if (!images.length) return res.status(400).json({ erreur: 'Au moins une photo est requise' })
+    if (!images.length && !enCours) {
+        return res.status(400).json({ erreur: 'Au moins une photo est requise' })
+    }
 
     // Une création porte déjà ce titre. Deux situations très différentes
     // se cachent là, et les confondre enferme dans une impasse.
@@ -1175,7 +1332,13 @@ app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
         //
         // On répond donc comme si l'envoi venait d'aboutir : c'est le cas,
         // simplement pas à cet essai-ci.
-        if (await memesPhotos(jumelle.id, images)) {
+        //
+        // Encore faut-il qu'il y ait eu une photo à envoyer : sans aucune,
+        // il n'y a pas de téléversement lent à voir s'interrompre, et
+        // reconnaître là « le même envoi » ferait passer deux projets
+        // homonymes et sans photo pour un seul. On refuse alors plus bas,
+        // ce qui invite à les départager.
+        if (images.length && await memesPhotos(jumelle.id, images)) {
             return res.json({
                 id: jumelle.id, titre: jumelle.titre, description: jumelle.description,
                 nbPhotos: images.length, dejaEnregistree: true
@@ -1189,16 +1352,21 @@ app.post('/api/photos', authentifier, adminSeulement, async (req, res) => {
         // d'être saisi : si la différence n'est qu'une casse ou une espace,
         // autant la montrer plutôt que de laisser deviner.
         return res.status(409).json({
-            erreur: `La création « ${jumelle.titre} » existe déjà, avec d'autres photos. ` +
-                    `Choisissez un autre titre, ou modifiez celle qui porte déjà ce nom.`
+            erreur: images.length
+                ? `La création « ${jumelle.titre} » existe déjà, avec d'autres photos. ` +
+                  `Choisissez un autre titre, ou modifiez celle qui porte déjà ce nom.`
+                : `La création « ${jumelle.titre} » existe déjà. ` +
+                  `Choisissez un autre titre, ou modifiez celle qui porte déjà ce nom.`
         })
     }
 
-    const enCours = lireEnCours(req.body)
-
+    // `images[0]` est absent d'un projet sans photo : la colonne héritée
+    // reçoit alors NULL, comme pour une création dont on retire toutes les
+    // photos (voir mettreAJourLaCouverture).
     const [result] = await pool.query(
         'INSERT INTO creations (titre, description, categorie, enCours, photo) VALUES (?, ?, ?, ?, ?)',
-        [titre, description || '', nettoyerCategorie(req.body.categorie), enCours, images[0]]
+        [titre, description || '', nettoyerCategorie(req.body.categorie),
+         enCours, images[0] || null]
     )
     // Une ligne par photo ; `i` devient son rang (0 = couverture).
     for (const [i, img] of images.entries()) {
@@ -1276,7 +1444,8 @@ app.put('/api/photos/:id', authentifier, adminSeulement, async (req, res) => {
     const { description } = req.body
     if (!titre) return res.status(400).json({ erreur: 'Le titre est obligatoire' })
 
-    const [actuelle] = await pool.query('SELECT titre FROM creations WHERE id = ?', [creationId])
+    const [actuelle] = await pool.query(
+        'SELECT titre, enCours FROM creations WHERE id = ?', [creationId])
     if (!actuelle.length) return res.status(404).json({ erreur: 'Création introuvable' })
 
     // Le doublon n'est cherché que si le titre change vraiment. Sinon les
@@ -1301,20 +1470,39 @@ app.put('/api/photos/:id', authentifier, adminSeulement, async (req, res) => {
     const colonneEnCours = changeEnCours ? ', enCours = ?' : ''
     const valeurEnCours  = changeEnCours ? [lireEnCours(req.body)] : []
 
+    // L'état visé, une fois cette requête appliquée.
+    const seraEnCours = changeEnCours ? !!lireEnCours(req.body) : !!actuelle[0].enCours
+
+    // `photos` absent du corps : seuls le titre et la description changent,
+    // les images restent en place.
+    const photosFournies = req.body.photos !== undefined || req.body.photo !== undefined
+    const images = photosFournies ? normaliserImages(req.body) : null
+
+    // Combien de photos la création portera-t-elle à la fin ? Celles du
+    // corps s'il en parle, sinon celles déjà rangées en base.
+    const nbPhotosApres = photosFournies
+        ? images.length
+        : await compterLesPhotos(creationId)
+
+    // La règle : un projet en cours peut n'avoir aucune photo, une création
+    // terminée doit en montrer au moins une. Le contrôle vient donc avant
+    // l'UPDATE, et non après comme pour les photos autrefois : refuser
+    // ensuite laisserait la création déjà marquée terminée et sans photo,
+    // exactement l'état qu'on veut interdire.
+    if (!seraEnCours && nbPhotosApres === 0) {
+        return res.status(400).json({
+            erreur: 'Une création terminée doit montrer au moins une photo. ' +
+                    'Ajoutez-en une, ou laissez-la en projet en cours.'
+        })
+    }
+
     await pool.query(
         `UPDATE creations SET titre = ?, description = ?, categorie = ?${colonneEnCours} WHERE id = ?`,
         [titre, description || '', nettoyerCategorie(req.body.categorie),
          ...valeurEnCours, creationId]
     )
 
-    // `photos` absent du corps : seuls le titre et la description changent,
-    // les images restent en place.
-    if (req.body.photos === undefined && req.body.photo === undefined) {
-        return res.json({ success: true })
-    }
-
-    const images = normaliserImages(req.body)
-    if (!images.length) return res.status(400).json({ erreur: 'Au moins une photo est requise' })
+    if (!photosFournies) return res.json({ success: true })
 
     const souhaitees = lireListeDePhotos(images)
     const idsAGarder = souhaitees.filter(photo => photo.dejaEnBase).map(photo => photo.id)
