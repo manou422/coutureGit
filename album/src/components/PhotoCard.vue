@@ -56,7 +56,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supprimerPhoto } from '../stores/photos.js'
-import { estAdmin, urlPhoto } from '../stores/auth.js'
+import { estAdmin, urlPhoto, urlImage } from '../stores/auth.js'
 
 // `defineProps` déclare ce que le composant reçoit de son parent — ici
 // une création : { id, titre, description, categorie, nbPhotos }.
@@ -75,9 +75,16 @@ const sansPhoto = computed(() => props.photo.nbPhotos === 0)
 // la création reste le même. Les images étant gardées un jour en cache,
 // l'ancienne adresse faisait resservir la photo précédente au navigateur
 // pendant 24 heures — la fiche montrait la nouvelle, la vignette non.
+//
+// `photoCouverture` absent : le serveur est plus ancien que cette page —
+// ses fichiers sont servis dès le dépôt, son code n'est repris qu'au
+// redémarrage. On retombe alors sur l'ancienne adresse, le temps que
+// l'écart se referme, plutôt que de n'afficher aucune vignette.
 onMounted(async () => {
     if (sansPhoto.value) return
-    src.value = await urlPhoto(props.photo.photoCouverture)
+    src.value = props.photo.photoCouverture
+        ? await urlPhoto(props.photo.photoCouverture)
+        : await urlImage(props.photo.id)
 })
 // En quittant la page, on libère l'adresse locale : sans cela, l'image
 // resterait en mémoire pour rien.

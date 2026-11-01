@@ -133,6 +133,16 @@ export async function urlPhoto(imageId) {
     return chargerBlob(`/api/images/${imageId}`)
 }
 
+// L'ancien raccourci, par numéro de création. Il ne sert plus qu'au cas
+// où le serveur serait plus ancien que la page : les fichiers du site
+// sont servis dès qu'ils sont déposés, alors que le serveur n'applique
+// son nouveau code qu'au redémarrage. Entre les deux, la liste ne porte
+// pas encore `photoCouverture` — mieux vaut une vignette un peu périmée
+// qu'une vignette absente.
+export async function urlImage(creationId) {
+    return chargerBlob(`/api/photos/${creationId}/image`)
+}
+
 
 // Le détour lui-même. Renvoie null en cas d'échec : les écrans savent
 // afficher un rectangle d'attente à la place.
