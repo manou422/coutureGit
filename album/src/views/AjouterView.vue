@@ -315,7 +315,15 @@ button:disabled { background-color: #aaa; cursor: default; }
     overflow: hidden;
     background: #f0f0f0;
 }
-.apercu-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.apercu-item img {
+    width: 100%;
+    height: 100%;
+    /* `contain` et non `cover` : l'aperçu montre la photo entière, dans
+       sa vraie forme. Avec `cover`, un paysage arrivait rogné en carré —
+       de quoi croire que le site n'en veut pas. */
+    object-fit: contain;
+    display: block;
+}
 .badge-couverture {
     position: absolute;
     left: 0;

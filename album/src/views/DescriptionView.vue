@@ -108,9 +108,17 @@ onUnmounted(() => {
     justify-content: center;
     max-width: 100%;
 }
-/* `max-height: 60vh` empêche une photo verticale d'occuper tout l'écran. */
+/* Deux plafonds, un par orientation, et c'est le plus contraignant des
+   deux qui s'applique à chaque photo.
+
+   `max-height: 60vh` empêche une photo verticale d'occuper tout l'écran ;
+   c'est lui qui décide pour un portrait. La largeur décide pour un
+   paysage : à 420 px, une photo 16:9 ne faisait que 236 px de haut,
+   minuscule alors que la hauteur disponible restait inutilisée. D'où
+   cette largeur plus généreuse, que le `min(100%, …)` ramène à celle de
+   l'écran sur un téléphone. */
 .visuel img {
-    max-width: 420px;
+    max-width: min(100%, 760px);
     max-height: 60vh;
     width: auto;
     height: auto;
