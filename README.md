@@ -214,7 +214,7 @@ sécurité, elle, est entièrement du côté serveur.
 | `GET /api/photos` | connecté | la liste des créations terminées, sans les images |
 | `GET /api/photos?enCours=1` | connecté | la liste des projets en cours |
 | `GET /api/photos/:id` | connecté | une création et les id de ses photos |
-| `GET /api/photos/:id/image` | connecté | l'image de couverture |
+| `GET /api/photos/:id/image` | connecté | l'image de couverture (plus utilisée par le site) |
 | `GET /api/images/:imageId` | connecté | une photo précise |
 | `POST` `PUT` `DELETE /api/photos` | admin | ajouter, modifier, supprimer |
 | `GET /api/categories` | connecté | la liste, avec les compteurs |

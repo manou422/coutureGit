@@ -51,37 +51,77 @@ function chargerImage(dataUrl) {
 }
 
 
-// Étape 3 : redessine l'image dans un canvas invisible, à la largeur
-// voulue. La hauteur suit la même proportion, pour ne pas déformer la
-// photo. Renvoie la nouvelle data URL.
-function redessiner(image, largeurVoulue, typeVoulu) {
-    const proportion = largeurVoulue / image.width
-
+// Étape 3 : redessine l'image dans un canvas invisible, aux dimensions
+// voulues. Renvoie la nouvelle data URL.
+function redessiner(image, largeur, hauteur, typeVoulu) {
     const canvas  = document.createElement('canvas')
-    canvas.width  = largeurVoulue
-    canvas.height = Math.round(image.height * proportion)
+    canvas.width  = largeur
+    canvas.height = hauteur
 
     const pinceau = canvas.getContext('2d')
     pinceau.imageSmoothingQuality = 'high'
-    pinceau.drawImage(image, 0, 0, canvas.width, canvas.height)
+    pinceau.drawImage(image, 0, 0, largeur, hauteur)
 
     return canvas.toDataURL(typeVoulu, QUALITE)
 }
 
 
-// Réduit une photo choisie dans le formulaire et renvoie une « data URL »
+/* --- L'orientation --------------------------------------------------- *
+ *
+ * Un téléphone tenu verticalement n'enregistre pas des pixels verticaux :
+ * il garde ceux du capteur, couchés, et joint une étiquette EXIF qui dit
+ * « à afficher pivotée d'un quart de tour ». Les visionneuses la
+ * respectent, mais tout ce qui lit les pixels bruts l'ignore — et la
+ * photo part en travers.
+ *
+ * On ne range donc jamais cette étiquette en base : la rotation est
+ * appliquée aux pixels une fois pour toutes, à l'envoi. L'image stockée
+ * est alors à l'endroit pour tout le monde, sans dépendre d'une consigne
+ * que le prochain lecteur pourrait ignorer.
+ *
+ * `createImageBitmap` fait ce travail quand on le lui demande : il rend
+ * une image déjà redressée, dont la largeur et la hauteur sont celles
+ * qu'on voit à l'écran.
+ */
+async function imageRedressee(fichier) {
+    if (typeof createImageBitmap === 'function') {
+        try {
+            return await createImageBitmap(fichier, { imageOrientation: 'from-image' })
+        } catch {
+            // Navigateur qui connaît `createImageBitmap` mais pas cette
+            // option : on retombe sur la voie classique ci-dessous, où
+            // c'est le navigateur qui redresse en chargeant l'image.
+        }
+    }
+    return chargerImage(await lireFichier(fichier))
+}
+
+
+// Prépare une photo choisie dans le formulaire et renvoie une « data URL »
 // (une chaîne data:image/jpeg;base64,... que le serveur range telle
 // quelle en base).
+//
+// Toute photo repasse par le canvas, même déjà petite. On y perd une
+// recompression, on y gagne une image sans étiquette d'orientation : ce
+// qui est stocké est ce qui s'affichera, partout et pour toujours.
 export async function redimensionner(fichier, largeurMax = LARGEUR_MAX) {
-    const original = await lireFichier(fichier)
-    const image    = await chargerImage(original)
+    const image = await imageRedressee(fichier)
 
-    // Déjà assez petite : on garde l'original, sans le recompresser.
-    if (image.width <= largeurMax) return original
+    // La largeur retenue est celle de la photo, sans dépasser le plafond.
+    // La hauteur suit la même proportion, pour ne pas la déformer — et
+    // une photo large reste large, une photo haute reste haute.
+    const largeur = Math.min(image.width, largeurMax)
+    const hauteur = Math.round(image.height * (largeur / image.width))
 
     // Le PNG est conservé s'il l'était (pour sa transparence), sinon JPEG.
     const type = fichier.type === 'image/png' ? 'image/png' : 'image/jpeg'
-    return redessiner(image, largeurMax, type)
+    const reduite = redessiner(image, largeur, hauteur, type)
+
+    // Un bitmap garde ses pixels en mémoire tant qu'on ne le ferme pas.
+    // Douze photos de 4000 px en retiendraient beaucoup pour rien.
+    if (typeof image.close === 'function') image.close()
+
+    return reduite
 }
 
 

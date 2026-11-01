@@ -116,17 +116,19 @@ export async function basculerVisibilite(id, visible) {
 }
 
 
-// Récupère la photo de couverture d'une création.
+// Récupère une photo, désignée par son identifiant propre.
 //
 // Pourquoi un détour ? Une balise <img src="..."> ne sait pas joindre
 // l'en-tête d'authentification. On télécharge donc l'image avec fetch
 // (qui, lui, passe par api() et son jeton), puis on fabrique une adresse
 // locale et temporaire — un « blob » — que <img> saura afficher.
-export async function urlImage(id) {
-    return chargerBlob(`/api/photos/${id}/image`)
-}
-
-// Même chose pour une photo précise, désignée par son identifiant propre.
+//
+// Les vignettes de la galerie passent aussi par ici, avec l'identifiant
+// de couverture que leur donne la liste. Il a existé un raccourci par
+// numéro de création, /api/photos/<création>/image : son adresse ne
+// changeait jamais, et remplacer une photo laissait le navigateur
+// resservir la précédente un jour durant. La route existe toujours côté
+// serveur, mais le site ne s'en sert plus.
 export async function urlPhoto(imageId) {
     return chargerBlob(`/api/images/${imageId}`)
 }

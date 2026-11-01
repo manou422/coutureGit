@@ -957,8 +957,20 @@ app.get('/api/photos', authentifier, async (req, res) => {
 
     const filtres = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
+    // `photoCouverture` est l'identifiant de la première photo — celle qui
+    // sert de vignette. La galerie s'en sert pour demander l'image à
+    // /api/images/<id>, dont l'adresse change dès qu'on remplace la photo.
+    //
+    // L'ancienne adresse, /api/photos/<création>/image, ne changeait
+    // jamais : les images étant gardées un jour en cache par le
+    // navigateur, remplacer une photo laissait la vignette afficher la
+    // précédente pendant 24 heures, alors que la fiche montrait déjà la
+    // bonne. Les deux ne racontaient plus la même histoire.
     const [lignes] = await pool.query(`
-        SELECT c.id, c.titre, c.description, c.categorie, c.enCours, COUNT(p.id) AS nbPhotos
+        SELECT c.id, c.titre, c.description, c.categorie, c.enCours,
+               COUNT(p.id) AS nbPhotos,
+               (SELECT p2.id FROM photos p2 WHERE p2.creationId = c.id
+                ORDER BY p2.ordre, p2.id LIMIT 1) AS photoCouverture
         FROM creations c
         LEFT JOIN photos p ON p.creationId = c.id
         ${JOINTURE_VISIBILITE}
